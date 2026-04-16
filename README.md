@@ -36,8 +36,8 @@ POST /api/v1/chat
 
 ```bash
 uv run python -m uvicorn app.main:app --reload
->> uv run python -c "import sys; print(sys.executable)"
->> uv sync
+uv run python -c "import sys; print(sys.executable)"
+uv sync
 ```
 
 

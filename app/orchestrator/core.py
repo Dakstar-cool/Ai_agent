@@ -274,7 +274,7 @@ class Orchestrator:
             index: int,
             session_id: str,
             execution_log: list[ExecutionStep],
-    ) - > str:
+    ) -> str:
         args = step.get("args")
         if not isinstance(args, dict):
             execution_log.append(
