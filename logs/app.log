@@ -1,0 +1,20 @@
+2026-04-16 08:27:32,073 | INFO | app.main | request_id=2a2de86b-bb75-4485-ac3a-59176e3b5052 | request_started method=POST path=/api/v1/chat
+2026-04-16 08:27:32,074 | WARNING | app.main | request_id=2a2de86b-bb75-4485-ac3a-59176e3b5052 | app_error path=/api/v1/chat code=llm_backend_unavailable message=LLM backend is unavailable
+2026-04-16 08:27:32,074 | INFO | app.main | request_id=2a2de86b-bb75-4485-ac3a-59176e3b5052 | request_finished method=POST path=/api/v1/chat duration_ms=1.7
+2026-04-16 08:27:32,076 | INFO | httpx | request_id=- | HTTP Request: POST http://testserver/api/v1/chat "HTTP/1.1 503 Service Unavailable"
+2026-04-16 08:27:32,200 | WARNING | app.providers.llm.lmstudio | request_id=- | LM Studio connect failed: base_url=http://127.0.0.1:1234/v1 model=demo
+2026-04-16 11:30:28,922 | INFO | app.main | request_id=d167b142-4837-4d45-8468-1ecc75be11aa | request_started method=GET path=/docs
+2026-04-16 11:30:28,925 | INFO | app.main | request_id=d167b142-4837-4d45-8468-1ecc75be11aa | request_finished method=GET path=/docs duration_ms=2.2
+2026-04-16 11:30:29,231 | INFO | app.main | request_id=88cd275a-f7f0-474c-a548-b4ab35db8a8c | request_started method=GET path=/openapi.json
+2026-04-16 11:30:29,255 | INFO | app.main | request_id=88cd275a-f7f0-474c-a548-b4ab35db8a8c | request_finished method=GET path=/openapi.json duration_ms=23.0
+2026-04-16 12:37:34,445 | INFO | app.main | request_id=99dac27a-b010-44b3-9ee9-a10101345273 | request_started method=GET path=/docs
+2026-04-16 12:37:34,447 | INFO | app.main | request_id=99dac27a-b010-44b3-9ee9-a10101345273 | request_finished method=GET path=/docs duration_ms=1.21
+2026-04-16 12:37:34,693 | INFO | app.main | request_id=14740e76-7eba-4b25-b3f9-6d73982ad5cb | request_started method=GET path=/openapi.json
+2026-04-16 12:37:34,713 | INFO | app.main | request_id=14740e76-7eba-4b25-b3f9-6d73982ad5cb | request_finished method=GET path=/openapi.json duration_ms=20.76
+2026-04-16 12:37:50,594 | INFO | app.main | request_id=c1c41c3f-fad5-41c2-a0d3-57a8ff079cb0 | request_started method=POST path=/api/v1/chat
+2026-04-16 12:37:50,597 | INFO | app.orchestrator.core | request_id=c1c41c3f-fad5-41c2-a0d3-57a8ff079cb0 | orchestrator_handle_start request_id=c1c41c3f-fad5-41c2-a0d3-57a8ff079cb0 session_id=string route=general message_len=6 plan_steps=1
+2026-04-16 12:37:50,597 | INFO | app.orchestrator.core | request_id=c1c41c3f-fad5-41c2-a0d3-57a8ff079cb0 | execution_step_start session_id=string index=1 kind=llm
+2026-04-16 12:38:04,890 | INFO | httpx | request_id=c1c41c3f-fad5-41c2-a0d3-57a8ff079cb0 | HTTP Request: POST http://127.0.0.1:1234/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-16 12:38:04,893 | INFO | app.orchestrator.core | request_id=c1c41c3f-fad5-41c2-a0d3-57a8ff079cb0 | execution_step_done session_id=string index=1 kind=llm reply_len=1326
+2026-04-16 12:38:04,893 | INFO | app.orchestrator.core | request_id=c1c41c3f-fad5-41c2-a0d3-57a8ff079cb0 | orchestrator_handle_done request_id=c1c41c3f-fad5-41c2-a0d3-57a8ff079cb0 session_id=string route=general execution_steps=2
+2026-04-16 12:38:04,894 | INFO | app.main | request_id=c1c41c3f-fad5-41c2-a0d3-57a8ff079cb0 | request_finished method=POST path=/api/v1/chat duration_ms=14299.11

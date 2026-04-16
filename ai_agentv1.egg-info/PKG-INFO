@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: ai-agentv1
+Version: 0.1.0
+Requires-Python: >=3.12
+Requires-Dist: fastapi>=0.135.3
+Requires-Dist: httpx>=0.28.1
+Requires-Dist: pydantic>=2.13.1
+Requires-Dist: pydantic-settings>=2.13.1
+Requires-Dist: uvicorn>=0.44.0
