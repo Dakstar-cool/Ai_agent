@@ -1,0 +1,110 @@
+2026-04-16 16:00:40,132 | INFO | app.main | request_id=0fae338d-8882-43aa-a7ab-4556c4e412dd | request_started method=POST path=/api/v1/chat
+2026-04-16 16:00:40,134 | WARNING | app.main | request_id=0fae338d-8882-43aa-a7ab-4556c4e412dd | app_error path=/api/v1/chat code=llm_backend_unavailable message=LLM backend is unavailable
+2026-04-16 16:00:40,134 | INFO | app.main | request_id=0fae338d-8882-43aa-a7ab-4556c4e412dd | request_finished method=POST path=/api/v1/chat duration_ms=2.63
+2026-04-16 16:00:40,136 | INFO | httpx | request_id=- | HTTP Request: POST http://testserver/api/v1/chat "HTTP/1.1 503 Service Unavailable"
+2026-04-16 16:03:06,203 | INFO | app.main | request_id=7874512e-89a8-4f38-b751-67d250dd2115 | request_started method=POST path=/api/v1/chat
+2026-04-16 16:03:06,206 | WARNING | app.main | request_id=7874512e-89a8-4f38-b751-67d250dd2115 | app_error path=/api/v1/chat code=llm_backend_unavailable message=LLM backend is unavailable
+2026-04-16 16:03:06,206 | INFO | app.main | request_id=7874512e-89a8-4f38-b751-67d250dd2115 | request_finished method=POST path=/api/v1/chat duration_ms=3.02
+2026-04-16 16:03:06,207 | INFO | httpx | request_id=- | HTTP Request: POST http://testserver/api/v1/chat "HTTP/1.1 503 Service Unavailable"
+2026-04-16 16:03:06,683 | WARNING | app.providers.llm.lmstudio | request_id=- | LM Studio connect failed: base_url=http://127.0.0.1:1234/v1 model=demo
+2026-04-16 16:03:15,921 | INFO | app.main | request_id=eeb1ead9-599d-47cf-bd80-7999002561cb | request_started method=GET path=/docs
+2026-04-16 16:03:15,922 | INFO | app.main | request_id=eeb1ead9-599d-47cf-bd80-7999002561cb | request_finished method=GET path=/docs duration_ms=1.28
+2026-04-16 16:03:16,165 | INFO | app.main | request_id=59e7286d-6c1c-453c-8b7e-0daa9cbce91c | request_started method=GET path=/openapi.json
+2026-04-16 16:03:16,194 | INFO | app.main | request_id=59e7286d-6c1c-453c-8b7e-0daa9cbce91c | request_finished method=GET path=/openapi.json duration_ms=27.53
+2026-04-16 16:03:37,587 | INFO | app.main | request_id=90c7d7c5-7744-45df-b62c-1b4a95fa69d9 | request_started method=POST path=/api/v1/chat
+2026-04-16 16:03:37,594 | INFO | app.orchestrator.core | request_id=90c7d7c5-7744-45df-b62c-1b4a95fa69d9 | orchestrator_handle_start request_id=90c7d7c5-7744-45df-b62c-1b4a95fa69d9 session_id=string route=general message_len=34 plan_steps=1
+2026-04-16 16:03:37,594 | INFO | app.orchestrator.core | request_id=90c7d7c5-7744-45df-b62c-1b4a95fa69d9 | execution_step_start session_id=string index=1 kind=llm
+2026-04-16 16:03:48,852 | INFO | httpx | request_id=90c7d7c5-7744-45df-b62c-1b4a95fa69d9 | HTTP Request: POST http://127.0.0.1:1234/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-16 16:03:48,856 | INFO | app.orchestrator.core | request_id=90c7d7c5-7744-45df-b62c-1b4a95fa69d9 | execution_step_done session_id=string index=1 kind=llm reply_len=257
+2026-04-16 16:03:48,857 | INFO | app.orchestrator.core | request_id=90c7d7c5-7744-45df-b62c-1b4a95fa69d9 | memory_save_skipped session_id=string route=general
+2026-04-16 16:03:48,857 | INFO | app.orchestrator.core | request_id=90c7d7c5-7744-45df-b62c-1b4a95fa69d9 | orchestrator_handle_done request_id=90c7d7c5-7744-45df-b62c-1b4a95fa69d9 session_id=string route=general execution_steps=2
+2026-04-16 16:03:48,858 | INFO | app.main | request_id=90c7d7c5-7744-45df-b62c-1b4a95fa69d9 | request_finished method=POST path=/api/v1/chat duration_ms=11269.94
+2026-04-16 16:04:13,689 | INFO | app.main | request_id=5f0f033a-25a5-4994-b7f6-fbc4aa37297a | request_started method=POST path=/api/v1/chat
+2026-04-16 16:04:13,692 | INFO | app.orchestrator.core | request_id=5f0f033a-25a5-4994-b7f6-fbc4aa37297a | orchestrator_handle_start request_id=5f0f033a-25a5-4994-b7f6-fbc4aa37297a session_id=string route=general message_len=22 plan_steps=1
+2026-04-16 16:04:13,692 | INFO | app.orchestrator.core | request_id=5f0f033a-25a5-4994-b7f6-fbc4aa37297a | execution_step_start session_id=string index=1 kind=llm
+2026-04-16 16:04:17,500 | INFO | httpx | request_id=5f0f033a-25a5-4994-b7f6-fbc4aa37297a | HTTP Request: POST http://127.0.0.1:1234/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-16 16:04:17,504 | INFO | app.orchestrator.core | request_id=5f0f033a-25a5-4994-b7f6-fbc4aa37297a | execution_step_done session_id=string index=1 kind=llm reply_len=69
+2026-04-16 16:04:17,505 | INFO | app.orchestrator.core | request_id=5f0f033a-25a5-4994-b7f6-fbc4aa37297a | memory_save_skipped session_id=string route=general
+2026-04-16 16:04:17,505 | INFO | app.orchestrator.core | request_id=5f0f033a-25a5-4994-b7f6-fbc4aa37297a | orchestrator_handle_done request_id=5f0f033a-25a5-4994-b7f6-fbc4aa37297a session_id=string route=general execution_steps=2
+2026-04-16 16:04:17,506 | INFO | app.main | request_id=5f0f033a-25a5-4994-b7f6-fbc4aa37297a | request_finished method=POST path=/api/v1/chat duration_ms=3816.02
+2026-04-16 16:05:25,671 | INFO | app.main | request_id=fa1cd852-0d7b-431d-8e44-aa92fc51b967 | request_started method=GET path=/docs
+2026-04-16 16:05:25,671 | INFO | app.main | request_id=fa1cd852-0d7b-431d-8e44-aa92fc51b967 | request_finished method=GET path=/docs duration_ms=1.37
+2026-04-16 16:05:25,840 | INFO | app.main | request_id=43acc53a-eaea-4256-8358-9eaa488a29cb | request_started method=GET path=/openapi.json
+2026-04-16 16:05:25,860 | INFO | app.main | request_id=43acc53a-eaea-4256-8358-9eaa488a29cb | request_finished method=GET path=/openapi.json duration_ms=19.62
+2026-04-16 16:05:36,363 | INFO | app.main | request_id=be95e457-a220-42bd-84b3-b78b0d4ec62d | request_started method=POST path=/api/v1/chat
+2026-04-16 16:05:36,369 | INFO | app.orchestrator.core | request_id=be95e457-a220-42bd-84b3-b78b0d4ec62d | orchestrator_handle_start request_id=be95e457-a220-42bd-84b3-b78b0d4ec62d session_id=string route=general message_len=15 plan_steps=1
+2026-04-16 16:05:36,369 | INFO | app.orchestrator.core | request_id=be95e457-a220-42bd-84b3-b78b0d4ec62d | execution_step_start session_id=string index=1 kind=llm
+2026-04-16 16:05:44,979 | INFO | httpx | request_id=be95e457-a220-42bd-84b3-b78b0d4ec62d | HTTP Request: POST http://127.0.0.1:1234/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-16 16:05:44,982 | INFO | app.orchestrator.core | request_id=be95e457-a220-42bd-84b3-b78b0d4ec62d | execution_step_done session_id=string index=1 kind=llm reply_len=175
+2026-04-16 16:05:44,983 | INFO | app.orchestrator.core | request_id=be95e457-a220-42bd-84b3-b78b0d4ec62d | memory_save_skipped session_id=string route=general
+2026-04-16 16:05:44,983 | INFO | app.orchestrator.core | request_id=be95e457-a220-42bd-84b3-b78b0d4ec62d | orchestrator_handle_done request_id=be95e457-a220-42bd-84b3-b78b0d4ec62d session_id=string route=general execution_steps=2
+2026-04-16 16:05:44,983 | INFO | app.main | request_id=be95e457-a220-42bd-84b3-b78b0d4ec62d | request_finished method=POST path=/api/v1/chat duration_ms=8620.63
+2026-04-16 16:08:35,721 | INFO | app.main | request_id=aa726699-639d-4b93-91df-1d55bf947a13 | request_started method=POST path=/api/v1/chat
+2026-04-16 16:08:35,727 | INFO | app.orchestrator.core | request_id=aa726699-639d-4b93-91df-1d55bf947a13 | orchestrator_handle_start request_id=aa726699-639d-4b93-91df-1d55bf947a13 session_id=string route=general message_len=25 plan_steps=1
+2026-04-16 16:08:35,728 | INFO | app.orchestrator.core | request_id=aa726699-639d-4b93-91df-1d55bf947a13 | execution_step_start session_id=string index=1 kind=llm
+2026-04-16 16:08:41,075 | INFO | httpx | request_id=aa726699-639d-4b93-91df-1d55bf947a13 | HTTP Request: POST http://127.0.0.1:1234/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-16 16:08:41,077 | INFO | app.orchestrator.core | request_id=aa726699-639d-4b93-91df-1d55bf947a13 | execution_step_done session_id=string index=1 kind=llm reply_len=120
+2026-04-16 16:08:41,078 | INFO | app.orchestrator.core | request_id=aa726699-639d-4b93-91df-1d55bf947a13 | memory_save_skipped session_id=string route=general
+2026-04-16 16:08:41,078 | INFO | app.orchestrator.core | request_id=aa726699-639d-4b93-91df-1d55bf947a13 | orchestrator_handle_done request_id=aa726699-639d-4b93-91df-1d55bf947a13 session_id=string route=general execution_steps=2
+2026-04-16 16:08:41,079 | INFO | app.main | request_id=aa726699-639d-4b93-91df-1d55bf947a13 | request_finished method=POST path=/api/v1/chat duration_ms=5357.46
+2026-04-16 16:09:20,163 | INFO | app.main | request_id=5d179b4a-9152-49f3-8d75-dd1ce0f0af90 | request_started method=POST path=/api/v1/chat
+2026-04-16 16:09:20,166 | INFO | app.orchestrator.core | request_id=5d179b4a-9152-49f3-8d75-dd1ce0f0af90 | orchestrator_handle_start request_id=5d179b4a-9152-49f3-8d75-dd1ce0f0af90 session_id=string route=general message_len=15 plan_steps=1
+2026-04-16 16:09:20,166 | INFO | app.orchestrator.core | request_id=5d179b4a-9152-49f3-8d75-dd1ce0f0af90 | execution_step_start session_id=string index=1 kind=llm
+2026-04-16 16:09:26,906 | INFO | httpx | request_id=5d179b4a-9152-49f3-8d75-dd1ce0f0af90 | HTTP Request: POST http://127.0.0.1:1234/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-16 16:09:26,909 | INFO | app.orchestrator.core | request_id=5d179b4a-9152-49f3-8d75-dd1ce0f0af90 | execution_step_done session_id=string index=1 kind=llm reply_len=158
+2026-04-16 16:09:26,909 | INFO | app.orchestrator.core | request_id=5d179b4a-9152-49f3-8d75-dd1ce0f0af90 | memory_save_skipped session_id=string route=general
+2026-04-16 16:09:26,910 | INFO | app.orchestrator.core | request_id=5d179b4a-9152-49f3-8d75-dd1ce0f0af90 | orchestrator_handle_done request_id=5d179b4a-9152-49f3-8d75-dd1ce0f0af90 session_id=string route=general execution_steps=2
+2026-04-16 16:09:26,910 | INFO | app.main | request_id=5d179b4a-9152-49f3-8d75-dd1ce0f0af90 | request_finished method=POST path=/api/v1/chat duration_ms=6746.95
+2026-04-16 16:21:18,516 | INFO | app.providers.memory.factory | request_id=- | memory_service_initialized backend=json enabled=true storage_path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl recall_limit=5
+2026-04-16 16:21:18,518 | INFO | app.providers.memory.json_file | request_id=- | json_memory_storage_ready path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl
+2026-04-16 16:21:18,523 | INFO | app.main | request_id=773d365c-5c05-4d23-acd6-5c8240909987 | request_started method=POST path=/api/v1/chat
+2026-04-16 16:21:18,526 | WARNING | app.main | request_id=773d365c-5c05-4d23-acd6-5c8240909987 | app_error path=/api/v1/chat code=llm_backend_unavailable message=LLM backend is unavailable
+2026-04-16 16:21:18,528 | INFO | app.main | request_id=773d365c-5c05-4d23-acd6-5c8240909987 | request_finished method=POST path=/api/v1/chat duration_ms=5.82
+2026-04-16 16:21:18,530 | INFO | httpx | request_id=- | HTTP Request: POST http://testserver/api/v1/chat "HTTP/1.1 503 Service Unavailable"
+2026-04-16 16:21:18,899 | WARNING | app.providers.llm.lmstudio | request_id=- | LM Studio connect failed: base_url=http://127.0.0.1:1234/v1 model=demo
+2026-04-16 16:21:18,911 | INFO | app.providers.memory.factory | request_id=- | memory_service_initialized backend=json enabled=true storage_path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\test.jsonl recall_limit=5
+2026-04-16 16:21:18,912 | INFO | app.providers.memory.json_file | request_id=- | json_memory_storage_ready path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\test.jsonl
+2026-04-16 16:22:30,294 | INFO | app.main | request_id=76e0ada3-120d-4be0-9d92-796f11182182 | request_started method=POST path=/api/v1/chat
+2026-04-16 16:22:30,296 | INFO | app.providers.memory.factory | request_id=76e0ada3-120d-4be0-9d92-796f11182182 | memory_service_initialized backend=json enabled=true storage_path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl recall_limit=5
+2026-04-16 16:22:30,297 | INFO | app.providers.memory.json_file | request_id=76e0ada3-120d-4be0-9d92-796f11182182 | json_memory_storage_ready path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl
+2026-04-16 16:22:30,299 | INFO | app.providers.memory.json_file | request_id=76e0ada3-120d-4be0-9d92-796f11182182 | memory_recall_completed path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl query_session_id=ai-agent-dev query_project_path=c:/users/ptica/pycharmprojects/ai_agentv1 matched=0
+2026-04-16 16:22:30,300 | INFO | app.orchestrator.core | request_id=76e0ada3-120d-4be0-9d92-796f11182182 | orchestrator_handle_start request_id=76e0ada3-120d-4be0-9d92-796f11182182 session_id=ai-agent-dev route=architecture message_len=94 plan_steps=1
+2026-04-16 16:22:30,300 | INFO | app.orchestrator.core | request_id=76e0ada3-120d-4be0-9d92-796f11182182 | execution_step_start session_id=ai-agent-dev index=1 kind=llm
+2026-04-16 16:22:44,468 | INFO | httpx | request_id=76e0ada3-120d-4be0-9d92-796f11182182 | HTTP Request: POST http://127.0.0.1:1234/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-16 16:22:44,471 | INFO | app.orchestrator.core | request_id=76e0ada3-120d-4be0-9d92-796f11182182 | execution_step_done session_id=ai-agent-dev index=1 kind=llm reply_len=815
+2026-04-16 16:22:44,472 | INFO | app.providers.memory.json_file | request_id=76e0ada3-120d-4be0-9d92-796f11182182 | memory_record_saved path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl session_id=ai-agent-dev route=architecture project_path=c:/users/ptica/pycharmprojects/ai_agentv1
+2026-04-16 16:22:44,473 | INFO | app.orchestrator.core | request_id=76e0ada3-120d-4be0-9d92-796f11182182 | orchestrator_handle_done request_id=76e0ada3-120d-4be0-9d92-796f11182182 session_id=ai-agent-dev route=architecture execution_steps=2
+2026-04-16 16:22:44,474 | INFO | app.main | request_id=76e0ada3-120d-4be0-9d92-796f11182182 | request_finished method=POST path=/api/v1/chat duration_ms=14180.47
+2026-04-16 16:23:13,175 | INFO | app.main | request_id=aa0a6134-7bbc-4c4e-ae1a-881f46c1cac7 | request_started method=POST path=/api/v1/chat
+2026-04-16 16:23:13,238 | INFO | app.providers.memory.json_file | request_id=aa0a6134-7bbc-4c4e-ae1a-881f46c1cac7 | memory_recall_completed path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl query_session_id=ai-agent-dev query_project_path=c:/users/ptica/pycharmprojects/ai_agentv1 matched=1
+2026-04-16 16:23:13,238 | INFO | app.orchestrator.core | request_id=aa0a6134-7bbc-4c4e-ae1a-881f46c1cac7 | orchestrator_handle_start request_id=aa0a6134-7bbc-4c4e-ae1a-881f46c1cac7 session_id=ai-agent-dev route=general message_len=25 plan_steps=1
+2026-04-16 16:23:13,239 | INFO | app.orchestrator.core | request_id=aa0a6134-7bbc-4c4e-ae1a-881f46c1cac7 | execution_step_start session_id=ai-agent-dev index=1 kind=llm
+2026-04-16 16:23:24,578 | INFO | httpx | request_id=aa0a6134-7bbc-4c4e-ae1a-881f46c1cac7 | HTTP Request: POST http://127.0.0.1:1234/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-16 16:23:24,582 | INFO | app.orchestrator.core | request_id=aa0a6134-7bbc-4c4e-ae1a-881f46c1cac7 | execution_step_done session_id=ai-agent-dev index=1 kind=llm reply_len=948
+2026-04-16 16:23:24,583 | INFO | app.providers.memory.json_file | request_id=aa0a6134-7bbc-4c4e-ae1a-881f46c1cac7 | memory_record_saved path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl session_id=ai-agent-dev route=general project_path=c:/users/ptica/pycharmprojects/ai_agentv1
+2026-04-16 16:23:24,584 | INFO | app.orchestrator.core | request_id=aa0a6134-7bbc-4c4e-ae1a-881f46c1cac7 | orchestrator_handle_done request_id=aa0a6134-7bbc-4c4e-ae1a-881f46c1cac7 session_id=ai-agent-dev route=general execution_steps=2
+2026-04-16 16:23:24,584 | INFO | app.main | request_id=aa0a6134-7bbc-4c4e-ae1a-881f46c1cac7 | request_finished method=POST path=/api/v1/chat duration_ms=11409.36
+2026-04-16 16:24:34,980 | INFO | app.main | request_id=71076d52-48d0-4269-8974-6400aee6f3da | request_started method=GET path=/docs
+2026-04-16 16:24:34,980 | INFO | app.main | request_id=71076d52-48d0-4269-8974-6400aee6f3da | request_finished method=GET path=/docs duration_ms=0.93
+2026-04-16 16:24:35,224 | INFO | app.main | request_id=e9be88a8-8430-4240-8f32-0f71ae2e8f53 | request_started method=GET path=/openapi.json
+2026-04-16 16:24:35,245 | INFO | app.main | request_id=e9be88a8-8430-4240-8f32-0f71ae2e8f53 | request_finished method=GET path=/openapi.json duration_ms=20.94
+2026-04-16 16:24:40,124 | INFO | app.main | request_id=a1c8e2d5-9f68-4086-857d-9fde6504ce59 | request_started method=POST path=/api/v1/chat
+2026-04-16 16:24:40,127 | INFO | app.providers.memory.factory | request_id=a1c8e2d5-9f68-4086-857d-9fde6504ce59 | memory_service_initialized backend=json enabled=true storage_path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl recall_limit=5
+2026-04-16 16:24:40,128 | INFO | app.providers.memory.json_file | request_id=a1c8e2d5-9f68-4086-857d-9fde6504ce59 | json_memory_storage_ready path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl
+2026-04-16 16:24:40,131 | INFO | app.providers.memory.json_file | request_id=a1c8e2d5-9f68-4086-857d-9fde6504ce59 | memory_recall_completed path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl query_session_id=ai-agent-dev query_project_path=c:/users/ptica/pycharmprojects/ai_agentv1 matched=2
+2026-04-16 16:24:40,132 | INFO | app.orchestrator.core | request_id=a1c8e2d5-9f68-4086-857d-9fde6504ce59 | orchestrator_handle_start request_id=a1c8e2d5-9f68-4086-857d-9fde6504ce59 session_id=ai-agent-dev route=general message_len=25 plan_steps=1
+2026-04-16 16:24:40,132 | INFO | app.orchestrator.core | request_id=a1c8e2d5-9f68-4086-857d-9fde6504ce59 | execution_step_start session_id=ai-agent-dev index=1 kind=llm
+2026-04-16 16:24:53,144 | INFO | httpx | request_id=a1c8e2d5-9f68-4086-857d-9fde6504ce59 | HTTP Request: POST http://127.0.0.1:1234/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-16 16:24:53,147 | INFO | app.orchestrator.core | request_id=a1c8e2d5-9f68-4086-857d-9fde6504ce59 | execution_step_done session_id=ai-agent-dev index=1 kind=llm reply_len=760
+2026-04-16 16:24:53,149 | INFO | app.providers.memory.json_file | request_id=a1c8e2d5-9f68-4086-857d-9fde6504ce59 | memory_record_saved path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl session_id=ai-agent-dev route=general project_path=c:/users/ptica/pycharmprojects/ai_agentv1
+2026-04-16 16:24:53,149 | INFO | app.orchestrator.core | request_id=a1c8e2d5-9f68-4086-857d-9fde6504ce59 | orchestrator_handle_done request_id=a1c8e2d5-9f68-4086-857d-9fde6504ce59 session_id=ai-agent-dev route=general execution_steps=2
+2026-04-16 16:24:53,150 | INFO | app.main | request_id=a1c8e2d5-9f68-4086-857d-9fde6504ce59 | request_finished method=POST path=/api/v1/chat duration_ms=13024.89
+2026-04-16 16:25:29,490 | INFO | app.main | request_id=931f61fb-9b37-49aa-b06e-973db3cf4cfa | request_started method=POST path=/api/v1/chat
+2026-04-16 16:25:29,493 | INFO | app.providers.memory.json_file | request_id=931f61fb-9b37-49aa-b06e-973db3cf4cfa | memory_recall_completed path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl query_session_id=ai-agent-dev-2 query_project_path=c:/users/ptica/pycharmprojects/ai_agentv1 matched=3
+2026-04-16 16:25:29,494 | INFO | app.orchestrator.core | request_id=931f61fb-9b37-49aa-b06e-973db3cf4cfa | orchestrator_handle_start request_id=931f61fb-9b37-49aa-b06e-973db3cf4cfa session_id=ai-agent-dev-2 route=general message_len=25 plan_steps=1
+2026-04-16 16:25:29,494 | INFO | app.orchestrator.core | request_id=931f61fb-9b37-49aa-b06e-973db3cf4cfa | execution_step_start session_id=ai-agent-dev-2 index=1 kind=llm
+2026-04-16 16:25:45,297 | INFO | httpx | request_id=931f61fb-9b37-49aa-b06e-973db3cf4cfa | HTTP Request: POST http://127.0.0.1:1234/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-16 16:25:45,301 | INFO | app.orchestrator.core | request_id=931f61fb-9b37-49aa-b06e-973db3cf4cfa | execution_step_done session_id=ai-agent-dev-2 index=1 kind=llm reply_len=776
+2026-04-16 16:25:45,302 | INFO | app.providers.memory.json_file | request_id=931f61fb-9b37-49aa-b06e-973db3cf4cfa | memory_record_saved path=C:\Users\ptica\PycharmProjects\Ai_agentV1\data\memory\interactions.jsonl session_id=ai-agent-dev-2 route=general project_path=c:/users/ptica/pycharmprojects/ai_agentv1
+2026-04-16 16:25:45,303 | INFO | app.orchestrator.core | request_id=931f61fb-9b37-49aa-b06e-973db3cf4cfa | orchestrator_handle_done request_id=931f61fb-9b37-49aa-b06e-973db3cf4cfa session_id=ai-agent-dev-2 route=general execution_steps=2
+2026-04-16 16:25:45,304 | INFO | app.main | request_id=931f61fb-9b37-49aa-b06e-973db3cf4cfa | request_finished method=POST path=/api/v1/chat duration_ms=15813.48
