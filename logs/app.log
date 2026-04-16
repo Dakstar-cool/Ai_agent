@@ -18,3 +18,21 @@
 2026-04-16 12:38:04,893 | INFO | app.orchestrator.core | request_id=c1c41c3f-fad5-41c2-a0d3-57a8ff079cb0 | execution_step_done session_id=string index=1 kind=llm reply_len=1326
 2026-04-16 12:38:04,893 | INFO | app.orchestrator.core | request_id=c1c41c3f-fad5-41c2-a0d3-57a8ff079cb0 | orchestrator_handle_done request_id=c1c41c3f-fad5-41c2-a0d3-57a8ff079cb0 session_id=string route=general execution_steps=2
 2026-04-16 12:38:04,894 | INFO | app.main | request_id=c1c41c3f-fad5-41c2-a0d3-57a8ff079cb0 | request_finished method=POST path=/api/v1/chat duration_ms=14299.11
+2026-04-16 14:13:10,169 | INFO | app.main | request_id=017839c3-7620-4404-9dfa-375cadc705c8 | request_started method=GET path=/docs
+2026-04-16 14:13:10,171 | INFO | app.main | request_id=017839c3-7620-4404-9dfa-375cadc705c8 | request_finished method=GET path=/docs duration_ms=0.99
+2026-04-16 14:13:10,417 | INFO | app.main | request_id=9c324946-4d11-470a-b629-9e4ce8468c96 | request_started method=GET path=/openapi.json
+2026-04-16 14:13:10,441 | INFO | app.main | request_id=9c324946-4d11-470a-b629-9e4ce8468c96 | request_finished method=GET path=/openapi.json duration_ms=24.61
+2026-04-16 14:13:38,814 | INFO | app.main | request_id=d89d25bb-7061-4422-aaf0-38132e2a0050 | request_started method=POST path=/api/v1/chat
+2026-04-16 14:13:38,817 | INFO | app.orchestrator.core | request_id=d89d25bb-7061-4422-aaf0-38132e2a0050 | orchestrator_handle_start request_id=d89d25bb-7061-4422-aaf0-38132e2a0050 session_id=string route=general message_len=11 plan_steps=1
+2026-04-16 14:13:38,817 | INFO | app.orchestrator.core | request_id=d89d25bb-7061-4422-aaf0-38132e2a0050 | execution_step_start session_id=string index=1 kind=llm
+2026-04-16 14:14:07,259 | INFO | httpx | request_id=d89d25bb-7061-4422-aaf0-38132e2a0050 | HTTP Request: POST http://127.0.0.1:1234/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-16 14:14:07,262 | INFO | app.orchestrator.core | request_id=d89d25bb-7061-4422-aaf0-38132e2a0050 | execution_step_done session_id=string index=1 kind=llm reply_len=2766
+2026-04-16 14:14:07,262 | INFO | app.orchestrator.core | request_id=d89d25bb-7061-4422-aaf0-38132e2a0050 | orchestrator_handle_done request_id=d89d25bb-7061-4422-aaf0-38132e2a0050 session_id=string route=general execution_steps=2
+2026-04-16 14:14:07,263 | INFO | app.main | request_id=d89d25bb-7061-4422-aaf0-38132e2a0050 | request_finished method=POST path=/api/v1/chat duration_ms=28449.56
+2026-04-16 14:34:36,820 | INFO | app.main | request_id=309a1f05-51cc-4419-828b-83bfbdbc30aa | request_started method=POST path=/api/v1/chat
+2026-04-16 14:34:36,833 | INFO | app.orchestrator.core | request_id=309a1f05-51cc-4419-828b-83bfbdbc30aa | orchestrator_handle_start request_id=309a1f05-51cc-4419-828b-83bfbdbc30aa session_id=Запомни, что мы строим локального orchestrator agent route=general message_len=6 plan_steps=1
+2026-04-16 14:34:36,833 | INFO | app.orchestrator.core | request_id=309a1f05-51cc-4419-828b-83bfbdbc30aa | execution_step_start session_id=Запомни, что мы строим локального orchestrator agent index=1 kind=llm
+2026-04-16 14:34:51,406 | INFO | httpx | request_id=309a1f05-51cc-4419-828b-83bfbdbc30aa | HTTP Request: POST http://127.0.0.1:1234/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-16 14:34:51,411 | INFO | app.orchestrator.core | request_id=309a1f05-51cc-4419-828b-83bfbdbc30aa | execution_step_done session_id=Запомни, что мы строим локального orchestrator agent index=1 kind=llm reply_len=1245
+2026-04-16 14:34:51,414 | INFO | app.orchestrator.core | request_id=309a1f05-51cc-4419-828b-83bfbdbc30aa | orchestrator_handle_done request_id=309a1f05-51cc-4419-828b-83bfbdbc30aa session_id=Запомни, что мы строим локального orchestrator agent route=general execution_steps=2
+2026-04-16 14:34:51,415 | INFO | app.main | request_id=309a1f05-51cc-4419-828b-83bfbdbc30aa | request_finished method=POST path=/api/v1/chat duration_ms=14594.67

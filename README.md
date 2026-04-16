@@ -15,6 +15,7 @@
 - LLM Provider abstraction
 - LM Studio provider
 - Memory abstraction + NoOp implementation
+- Optional local JSON memory backend
 - Tools registry + 3 базовых tools
 
 ## Базовый поток

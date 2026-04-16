@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     lmstudio_model: str = "google/gemma-4-e4b"
 
     enable_memory: bool = False
+    memory_backend: str = "noop"
+    memory_file_path: str = "data/memory/interactions.jsonl"
+    memory_recall_limit: int = 5
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

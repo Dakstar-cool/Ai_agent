@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from app.config.settings import get_settings
 from app.orchestrator.core import Orchestrator
 from app.providers.llm.lmstudio import LMStudioProvider
+from app.providers.memory.json_file import JsonFileMemoryService
 from app.providers.memory.noop import NoOpMemoryService
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.tools.files.read_file import ReadFileTool
@@ -15,6 +16,20 @@ from app.tools.terminal.run_command import RunCommandTool
 router = APIRouter()
 
 
+def build_memory_service():
+    settings = get_settings()
+    if not settings.enable_memory:
+        return NoOpMemoryService()
+
+    if settings.memory_backend == "json":
+        return JsonFileMemoryService(
+            storage_path=settings.memory_file_path,
+            recall_limit=settings.memory_recall_limit,
+        )
+
+    return NoOpMemoryService()
+
+
 @lru_cache(maxsize=1)
 def get_orchestrator() -> Orchestrator:
     settings = get_settings()
@@ -23,7 +38,7 @@ def get_orchestrator() -> Orchestrator:
         base_url=settings.lmstudio_base_url,
         model=settings.lmstudio_model,
     )
-    memory_service = NoOpMemoryService()
+    memory_service = build_memory_service()
 
     registry = ToolRegistry()
     registry.register(ReadFileTool())
