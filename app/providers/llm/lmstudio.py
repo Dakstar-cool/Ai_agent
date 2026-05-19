@@ -16,6 +16,10 @@ class LMStudioProvider(ILLMProvider):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
+        self._client = httpx.AsyncClient(timeout=self.timeout)
+
+    async def aclose(self) -> None:
+        await self._client.aclose()
 
     async def chat(self, messages: list[dict[str, str]], **kwargs: Any) -> str:
         payload = {
@@ -25,9 +29,8 @@ class LMStudioProvider(ILLMProvider):
         }
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(f"{self.base_url}/chat/completions", json=payload)
-                response.raise_for_status()
+            response = await self._client.post(f"{self.base_url}/chat/completions", json=payload)
+            response.raise_for_status()
         except httpx.ConnectError as exc:
             logger.warning("LM Studio connect failed: base_url=%s model=%s", self.base_url, payload["model"])
             raise LLMProviderUnavailableError(

@@ -56,6 +56,7 @@ class Orchestrator:
             session=session,
             message=request.message,
             route=route,
+            project_path=request.project_path,
         )
         plan = self.planner.make_plan(context=context, route=route)
 
@@ -99,7 +100,13 @@ class Orchestrator:
         else:
             execution_log.append(ExecutionStep(name="verification", status="ok", payload={}))
 
-        await self._save_memory(request=request, session_id=session.session_id, route=route, llm_reply=llm_reply)
+        await self._save_memory(
+            request=request,
+            session_id=session.session_id,
+            route=route,
+            llm_reply=llm_reply,
+            verification_ok=ok,
+        )
 
         # Важно: сохраняем user message только после сборки контекста.
         # Иначе текущее сообщение попадает в историю дважды:
@@ -344,18 +351,32 @@ class Orchestrator:
         )
         return llm_reply
 
-    async def _save_memory(self, *, request: ChatRequest, session_id: str, route: str, llm_reply: str) -> None:
+    async def _save_memory(
+        self,
+        *,
+        request: ChatRequest,
+        session_id: str,
+        route: str,
+        llm_reply: str,
+        verification_ok: bool,
+    ) -> None:
+        if not self._should_save_memory(request=request, llm_reply=llm_reply, verification_ok=verification_ok):
+            logger.info("memory_save_skipped session_id=%s route=%s", session_id, route)
+            return
+
         try:
+            from app.providers.memory.models import MemoryRecord
+
             await self.memory_service.save(
-                {
-                    "kind": "interaction",
-                    "user_message": request.message,
-                    "assistant_reply": llm_reply,
-                    "route": route,
-                    "metadata": request.metadata,
-                    "project_path": request.project_path,
-                },
-                session_id=session_id,
+                MemoryRecord(
+                    kind="interaction",
+                    session_id=session_id,
+                    user_message=request.message,
+                    assistant_reply=llm_reply,
+                    route=route,
+                    metadata=request.metadata,
+                    project_path=request.project_path,
+                )
             )
         except Exception as exc:
             logger.warning(
@@ -363,3 +384,22 @@ class Orchestrator:
                 session_id,
                 exc.__class__.__name__,
             )
+
+    def _should_save_memory(self, *, request: ChatRequest, llm_reply: str, verification_ok: bool) -> bool:
+        if not verification_ok:
+            return False
+
+        if not request.message.strip() or not llm_reply.strip():
+            return False
+
+        placeholders = {"string", "null", "none"}
+        if request.message.strip().lower() in placeholders:
+            return False
+
+        if request.project_path and request.project_path.strip().lower() in placeholders:
+            return False
+
+        if llm_reply.startswith("Execution failed verification:"):
+            return False
+
+        return True

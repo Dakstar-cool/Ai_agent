@@ -1,92 +1,167 @@
 from __future__ import annotations
 
 import asyncio
+import heapq
 import json
+import logging
 import re
+import threading
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 from app.providers.memory.base import IMemoryService
+from app.providers.memory.models import MemoryRecallItem, MemoryRecallQuery, MemoryRecord
 
+logger = logging.getLogger(__name__)
 _TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 
 
 class JsonFileMemoryService(IMemoryService):
-    def __init__(self, storage_path: str, recall_limit: int = 5) -> None:
-        self.storage_path = Path(storage_path)
-        self.recall_limit = recall_limit
+    def __init__(self, storage_path: str, recall_limit: int = 5, max_recall_limit: int = 20) -> None:
+        self.storage_path = Path(storage_path).resolve()
+        self.max_recall_limit = max(1, max_recall_limit)
+        self.recall_limit = min(max(1, recall_limit), self.max_recall_limit)
+        self._lock = threading.Lock()
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
         self.storage_path.touch(exist_ok=True)
+        logger.info("json_memory_storage_ready path=%s", self.storage_path)
 
-    async def recall(self, query: str, session_id: str | None = None) -> list[dict[str, Any]]:
-        return await asyncio.to_thread(self._recall_sync, query, session_id)
+    async def recall(self, query: MemoryRecallQuery) -> list[MemoryRecallItem]:
+        return await asyncio.to_thread(self._recall_sync, query)
 
-    async def save(self, item: dict[str, Any], session_id: str | None = None) -> None:
-        await asyncio.to_thread(self._save_sync, item, session_id)
+    async def save(self, item: MemoryRecord) -> None:
+        await asyncio.to_thread(self._save_sync, item)
 
-    def _save_sync(self, item: dict[str, Any], session_id: str | None = None) -> None:
-        record = {
-            "session_id": session_id,
-            "kind": item.get("kind", "interaction"),
-            "user_message": item.get("user_message", ""),
-            "assistant_reply": item.get("assistant_reply", ""),
-            "route": item.get("route", "general"),
-            "metadata": item.get("metadata", {}),
-            "project_path": item.get("project_path"),
-        }
-        with self.storage_path.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    def _save_sync(self, item: MemoryRecord) -> None:
+        record = item.model_copy(
+            update={
+                "created_at": item.created_at or datetime.now(UTC).isoformat(),
+                "project_path": self._normalize_path(item.project_path),
+            }
+        )
+        with self._lock:
+            with self.storage_path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(record.model_dump(), ensure_ascii=False) + "\n")
+        logger.info(
+            "memory_record_saved path=%s session_id=%s route=%s project_path=%s",
+            self.storage_path,
+            record.session_id,
+            record.route,
+            record.project_path,
+        )
 
-    def _recall_sync(self, query: str, session_id: str | None = None) -> list[dict[str, Any]]:
-        query_tokens = self._tokenize(query)
-        if not query_tokens:
+    def _recall_sync(self, query: MemoryRecallQuery) -> list[MemoryRecallItem]:
+        query_tokens = self._tokenize(query.text)
+        normalized_project_path = self._normalize_path(query.project_path)
+        limit = self._coerce_limit(query.limit)
+
+        if not query_tokens and not normalized_project_path and not query.session_id:
             return []
 
-        ranked: list[tuple[int, dict[str, Any]]] = []
-        with self.storage_path.open("r", encoding="utf-8") as fh:
-            for line in fh:
-                line = line.strip()
-                if not line:
-                    continue
+        ranked: list[tuple[int, str, int, MemoryRecallItem]] = []
+        with self._lock:
+            if not self.storage_path.exists():
+                return []
 
-                try:
-                    record = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
+            with self.storage_path.open("r", encoding="utf-8") as fh:
+                self._scan_records(fh, query, query_tokens, normalized_project_path, ranked, limit)
 
-                if session_id and record.get("session_id") != session_id:
-                    continue
+        top_ranked = heapq.nlargest(limit, ranked, key=lambda item: (item[0], item[1], item[2]))
+        results = [item[3] for item in top_ranked]
+        logger.info(
+            "memory_recall_completed path=%s query_session_id=%s query_project_path=%s matched=%s",
+            self.storage_path,
+            query.session_id,
+            normalized_project_path,
+            len(results),
+        )
+        return results
 
-                haystack = " ".join(
-                    [
-                        str(record.get("user_message", "")),
-                        str(record.get("assistant_reply", "")),
-                        str(record.get("route", "")),
-                    ]
-                )
-                score = self._score(query_tokens, haystack)
-                if score <= 0:
-                    continue
+    def _scan_records(
+        self,
+        fh,
+        query: MemoryRecallQuery,
+        query_tokens: set[str],
+        normalized_project_path: str | None,
+        ranked: list[tuple[int, str, int, MemoryRecallItem]],
+        limit: int,
+    ) -> None:
+        counter = 0
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
 
-                ranked.append(
-                    (
-                        score,
-                        {
-                            "summary": self._build_summary(record),
-                            "score": score,
-                            "route": record.get("route", "general"),
-                            "session_id": record.get("session_id"),
-                        },
-                    )
-                )
+            try:
+                raw_record = json.loads(line)
+                record = MemoryRecord.model_validate(raw_record)
+            except Exception:
+                continue
 
-        ranked.sort(key=lambda item: item[0], reverse=True)
-        return [item[1] for item in ranked[: self.recall_limit]]
+            score = self._calculate_score(
+                query_tokens=query_tokens,
+                record=record,
+                session_id=query.session_id,
+                project_path=normalized_project_path,
+                route=query.route,
+            )
+            if score <= 0:
+                continue
 
-    def _build_summary(self, record: dict[str, Any]) -> str:
-        user_message = str(record.get("user_message", "")).strip()
-        assistant_reply = str(record.get("assistant_reply", "")).strip()
-        route = str(record.get("route", "general")).strip()
+            counter += 1
+            entry = (
+                score,
+                record.created_at or "",
+                counter,
+                MemoryRecallItem(
+                    summary=self._build_summary(record),
+                    score=score,
+                    route=record.route,
+                    session_id=record.session_id,
+                    project_path=record.project_path,
+                    created_at=record.created_at or datetime.now(UTC).isoformat(),
+                ),
+            )
+            if len(ranked) < limit:
+                heapq.heappush(ranked, entry)
+            elif (entry[0], entry[1], entry[2]) > (ranked[0][0], ranked[0][1], ranked[0][2]):
+                heapq.heapreplace(ranked, entry)
+
+    def _coerce_limit(self, limit: int | None) -> int:
+        if limit is None:
+            return self.recall_limit
+        return min(max(1, limit), self.max_recall_limit)
+
+    def _calculate_score(
+        self,
+        *,
+        query_tokens: set[str],
+        record: MemoryRecord,
+        session_id: str | None,
+        project_path: str | None,
+        route: str | None,
+    ) -> int:
+        haystack = " ".join([
+            record.user_message,
+            record.assistant_reply,
+            record.route,
+            json.dumps(record.metadata, ensure_ascii=False),
+        ])
+        score = self._score(query_tokens, haystack)
+
+        if project_path and record.project_path == project_path:
+            score += 10
+        if session_id and record.session_id == session_id:
+            score += 6
+        if route and record.route == route:
+            score += 2
+
+        return score
+
+    def _build_summary(self, record: MemoryRecord) -> str:
+        user_message = record.user_message.strip()
+        assistant_reply = record.assistant_reply.strip()
+        route = record.route.strip()
 
         reply_preview = assistant_reply[:180]
         if len(assistant_reply) > 180:
@@ -100,3 +175,8 @@ class JsonFileMemoryService(IMemoryService):
 
     def _tokenize(self, text: str) -> set[str]:
         return {token.lower() for token in _TOKEN_RE.findall(text) if len(token) >= 3}
+
+    def _normalize_path(self, value: str | None) -> str | None:
+        if not value:
+            return None
+        return str(Path(value).expanduser()).replace("\\", "/").rstrip("/").lower()

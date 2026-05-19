@@ -23,3 +23,8 @@ class LLMProviderUnavailableError(AppError):
 class LLMProviderBadResponseError(AppError):
     def __init__(self, message: str = "LLM backend returned an invalid response", details: dict[str, Any] | None = None) -> None:
         super().__init__(message=message, code="llm_backend_bad_response", status_code=502, details=details or {})
+
+
+class ToolInputError(AppError):
+    def __init__(self, message: str = "Invalid tool input", details: dict[str, Any] | None = None) -> None:
+        super().__init__(message=message, code="invalid_tool_input", status_code=400, details=details or {})
