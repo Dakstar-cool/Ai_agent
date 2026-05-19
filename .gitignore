@@ -1,11 +1,47 @@
+# Environment and local configuration
 .env
+.env.*
+!.env.example
+*.local
+
+# Python environments and caches
 .venv/
 venv/
+env/
+ENV/
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
+# Logs and runtime output
 logs/
-data/memory/*.jsonl
+*.log
 
+# Agent memory and local state
+data/memory/
+data/**/*.jsonl
+*.sqlite
+*.sqlite3
+*.db
+
+# Secrets and credentials
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+secrets.*
+secret.*
+*_secret.*
+*_secrets.*
+
+# Local IDE/editor files
 .idea/
+.vscode/
