@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from app.config.settings import get_settings
 from app.orchestrator.core import Orchestrator
 from app.orchestrator.session.manager import SessionManager
+from app.orchestrator.verification.code_verifier import CodeVerifier
 from app.providers.llm.lmstudio import LMStudioProvider
 from app.providers.memory.factory import build_memory_service
 from app.schemas.chat import ChatRequest, ChatResponse
@@ -80,6 +81,11 @@ def get_orchestrator() -> Orchestrator:
         llm_provider=llm_provider,
         memory_service=memory_service,
         tool_registry=registry,
+        code_verifier=CodeVerifier(
+            root_dir=tool_root,
+            timeout_seconds=settings.tool_command_timeout_seconds,
+            max_output_chars=settings.tool_max_output_chars,
+        ),
         session_manager=SessionManager(
             max_sessions=settings.session_max_sessions,
             max_messages=settings.session_max_messages,

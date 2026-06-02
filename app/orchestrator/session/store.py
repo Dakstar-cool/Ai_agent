@@ -3,6 +3,8 @@ from app.orchestrator.models import SessionState, SessionMessage
 
 
 class InMemorySessionStore:
+    """Experimental scaffold store; active runtime uses SessionManager."""
+
     def __init__(self) -> None:
         self._sessions: dict[str, SessionState] = {}
 

@@ -10,9 +10,11 @@ from app.orchestrator.planning.planner import Planner
 from app.orchestrator.routing.router import TaskRouter
 from app.orchestrator.session.manager import SessionManager
 from app.orchestrator.synthesis.result_synthesizer import ResultSynthesizer
+from app.orchestrator.verification.code_verifier import CodeVerifier
 from app.orchestrator.verification.verifier import Verifier
 from app.providers.llm.base import ILLMProvider
 from app.providers.memory.base import IMemoryService
+from app.providers.memory.policy import contains_sensitive_data
 from app.schemas.chat import ChatRequest, ChatResponse, ExecutionStep
 from app.tools.registry import ToolRegistry
 from app.utils.request_context import get_request_id
@@ -33,6 +35,7 @@ class Orchestrator:
         planner: Planner | None = None,
         dispatcher: ToolDispatcher | None = None,
         verifier: Verifier | None = None,
+        code_verifier: CodeVerifier | None = None,
         synthesizer: ResultSynthesizer | None = None,
     ) -> None:
         self.llm_provider = llm_provider
@@ -45,6 +48,7 @@ class Orchestrator:
         self.planner = planner or Planner()
         self.dispatcher = dispatcher or ToolDispatcher(tool_registry)
         self.verifier = verifier or Verifier()
+        self.code_verifier = code_verifier
         self.synthesizer = synthesizer or ResultSynthesizer()
 
     async def handle(self, request: ChatRequest) -> ChatResponse:
@@ -101,6 +105,13 @@ class Orchestrator:
             execution_log.append(
                 ExecutionStep(name="verification", status="ok", payload={})
             )
+
+        await self._maybe_run_code_verifier(
+            request=request,
+            route=route,
+            session_id=session.session_id,
+            execution_log=execution_log,
+        )
 
         await self._save_memory(
             request=request,
@@ -424,4 +435,66 @@ class Orchestrator:
         if llm_reply.startswith("Execution failed verification:"):
             return False
 
+        if contains_sensitive_data(request.message):
+            logger.info("memory_save_skipped reason=sensitive_data field=message")
+            return False
+
+        if contains_sensitive_data(request.metadata):
+            logger.info("memory_save_skipped reason=sensitive_data field=metadata")
+            return False
+
+        if contains_sensitive_data(llm_reply):
+            logger.info("memory_save_skipped reason=sensitive_data field=llm_reply")
+            return False
+
         return True
+
+    async def _maybe_run_code_verifier(
+        self,
+        *,
+        request: ChatRequest,
+        route: str,
+        session_id: str,
+        execution_log: list[ExecutionStep],
+    ) -> None:
+        if route != "coding":
+            return
+        if request.metadata.get("verify_code") is not True:
+            return
+        if self.code_verifier is None:
+            execution_log.append(
+                ExecutionStep(
+                    name="code_verifier",
+                    status="failed",
+                    payload={"error": "code_verifier_not_configured"},
+                )
+            )
+            return
+
+        try:
+            result = await self.code_verifier.verify()
+        except Exception as exc:
+            logger.warning(
+                "code_verifier_failed session_id=%s error=%s",
+                session_id,
+                exc.__class__.__name__,
+            )
+            execution_log.append(
+                ExecutionStep(
+                    name="code_verifier",
+                    status="failed",
+                    payload={
+                        "error": "code_verifier_failed",
+                        "error_type": exc.__class__.__name__,
+                    },
+                )
+            )
+            return
+
+        execution_log.append(
+            ExecutionStep(
+                name="code_verifier",
+                status="ok" if result.get("ok") is True else "failed",
+                payload=result,
+            )
+        )

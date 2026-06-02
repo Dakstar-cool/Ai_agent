@@ -28,3 +28,18 @@ def test_memory_factory_uses_resolved_absolute_path() -> None:
     assert str(service.storage_path).endswith(
         str(Path("data") / "memory" / "test.jsonl")
     )
+
+
+def test_env_example_contains_public_settings() -> None:
+    env_path = Path(__file__).resolve().parent.parent / ".env.example"
+    keys = {
+        line.split("=", 1)[0]
+        for line in env_path.read_text(encoding="utf-8").splitlines()
+        if line and not line.startswith("#") and "=" in line
+    }
+
+    expected = {field_name.upper() for field_name in Settings.model_fields}
+
+    assert expected <= keys
+    assert "ruff" in Settings().tool_allowed_commands
+    assert "ruff" in env_path.read_text(encoding="utf-8")

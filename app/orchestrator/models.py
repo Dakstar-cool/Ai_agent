@@ -1,3 +1,9 @@
+"""Experimental scaffold models for a parallel orchestrator design.
+
+These are not the active API response/runtime models. The active flow uses
+app.schemas.chat and app.orchestrator.core.
+"""
+
 from enum import Enum
 from datetime import datetime
 from pydantic import BaseModel, Field
