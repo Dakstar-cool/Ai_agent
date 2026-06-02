@@ -11,6 +11,11 @@ from app.providers.memory.factory import build_memory_service
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.tools.files.read_file import ReadFileTool
 from app.tools.files.write_file import WriteFileTool
+from app.tools.git.diff import GitDiffTool
+from app.tools.git.log import GitLogTool
+from app.tools.git.status import GitStatusTool
+from app.tools.project.scan_project import ScanProjectTool
+from app.tools.project.search_project import SearchProjectTool
 from app.tools.registry import ToolRegistry
 from app.tools.terminal.run_command import RunCommandTool
 
@@ -35,6 +40,29 @@ def get_orchestrator() -> Orchestrator:
         RunCommandTool(
             root_dir=tool_root,
             allowed_commands=settings.allowed_tool_commands(),
+            timeout_seconds=settings.tool_command_timeout_seconds,
+            max_output_chars=settings.tool_max_output_chars,
+        )
+    )
+    registry.register(ScanProjectTool(root_dir=tool_root))
+    registry.register(SearchProjectTool(root_dir=tool_root, max_file_bytes=settings.tool_max_file_bytes))
+    registry.register(
+        GitStatusTool(
+            root_dir=tool_root,
+            timeout_seconds=settings.tool_command_timeout_seconds,
+            max_output_chars=settings.tool_max_output_chars,
+        )
+    )
+    registry.register(
+        GitDiffTool(
+            root_dir=tool_root,
+            timeout_seconds=settings.tool_command_timeout_seconds,
+            max_output_chars=settings.tool_max_output_chars,
+        )
+    )
+    registry.register(
+        GitLogTool(
+            root_dir=tool_root,
             timeout_seconds=settings.tool_command_timeout_seconds,
             max_output_chars=settings.tool_max_output_chars,
         )

@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     session_max_messages: int = 50
 
     tool_workspace_root: str = "."
-    tool_allowed_commands: str = "git,python,pytest,uv"
+    tool_allowed_commands: str = "git,python,pytest,uv,ruff"
     tool_command_timeout_seconds: float = 30.0
     tool_max_output_chars: int = 20_000
     tool_max_file_bytes: int = 200_000

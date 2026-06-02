@@ -3,7 +3,7 @@ from typing import Any
 
 from app.errors import ToolInputError
 from app.tools.base import ITool
-from app.tools.path_safety import resolve_workspace_path
+from app.tools.path_safety import is_probably_binary_file, resolve_workspace_path
 
 
 class ReadFileTool(ITool):
@@ -24,11 +24,13 @@ class ReadFileTool(ITool):
             raise ToolInputError("Path is not a file", details={"path": str(path)})
 
         size = path.stat().st_size
-        if size > self.max_bytes:
-            raise ToolInputError(
-                "File is too large to read",
-                details={"path": str(path), "size": size, "max_bytes": self.max_bytes},
-            )
+        if is_probably_binary_file(path):
+            raise ToolInputError("Binary files cannot be read by this tool", details={"path": str(path)})
 
-        content = path.read_text(encoding="utf-8")
-        return {"path": str(path), "content": content}
+        raw = path.read_bytes()
+        truncated = len(raw) > self.max_bytes
+        if truncated:
+            raw = raw[: self.max_bytes]
+
+        content = raw.decode("utf-8", errors="replace")
+        return {"path": str(path), "size": size, "truncated": truncated, "content": content}

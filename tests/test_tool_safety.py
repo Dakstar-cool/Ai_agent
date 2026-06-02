@@ -5,6 +5,7 @@ import pytest
 from app.errors import ToolInputError
 from app.tools.files.read_file import ReadFileTool
 from app.tools.files.write_file import WriteFileTool
+from app.tools.path_safety import WorkspacePathPolicy
 from app.tools.terminal.run_command import RunCommandTool
 
 
@@ -16,6 +17,25 @@ async def test_read_file_rejects_paths_outside_workspace(tmp_path) -> None:
         await tool.run(path="../outside.txt")
 
 
+def test_path_policy_rejects_traversal(tmp_path) -> None:
+    policy = WorkspacePathPolicy(tmp_path)
+
+    with pytest.raises(ToolInputError):
+        policy.resolve("..")
+
+
+def test_path_policy_rejects_protected_path_parts(tmp_path) -> None:
+    protected_file = tmp_path / ".env"
+    protected_file.write_text("SECRET=1", encoding="utf-8")
+    policy = WorkspacePathPolicy(tmp_path)
+
+    with pytest.raises(ToolInputError):
+        policy.resolve(".env", must_exist=True)
+
+    with pytest.raises(ToolInputError):
+        policy.resolve(".git/config", must_exist=False)
+
+
 @pytest.mark.asyncio
 async def test_write_file_rejects_large_content(tmp_path) -> None:
     tool = WriteFileTool(root_dir=tmp_path, max_bytes=3)
@@ -25,8 +45,24 @@ async def test_write_file_rejects_large_content(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_write_file_rejects_protected_paths(tmp_path) -> None:
+    tool = WriteFileTool(root_dir=tmp_path)
+
+    with pytest.raises(ToolInputError):
+        await tool.run(path=".env", content="SECRET=1")
+
+
+@pytest.mark.asyncio
 async def test_run_command_rejects_shell_operators(tmp_path) -> None:
     tool = RunCommandTool(root_dir=tmp_path, allowed_commands={"git"})
 
     with pytest.raises(ToolInputError):
         await tool.run(command="git status | more")
+
+
+@pytest.mark.asyncio
+async def test_run_command_rejects_dangerous_git_subcommand(tmp_path) -> None:
+    tool = RunCommandTool(root_dir=tmp_path, allowed_commands={"git"})
+
+    with pytest.raises(ToolInputError):
+        await tool.run(args=["git", "push"])

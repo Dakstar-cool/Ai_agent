@@ -201,8 +201,10 @@ class Orchestrator:
             result_payload = tool_result["result"]
             status = "ok"
 
-            if isinstance(result_payload, dict) and result_payload.get("returncode") not in (None, 0):
-                status = "failed"
+            if isinstance(result_payload, dict):
+                exit_code = result_payload.get("exit_code", result_payload.get("returncode"))
+                if exit_code not in (None, 0):
+                    status = "failed"
 
             execution_log.append(
                 ExecutionStep(
