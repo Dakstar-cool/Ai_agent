@@ -3,16 +3,19 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import Any
 
+
 class TaskType(str, Enum):
     CHAT = "chat"
     CODING = "coding"
     ARCHITECTURE = "architecture"
     RESEARCH = "research"
 
+
 class PlanStepType(str, Enum):
     LLM_CHAT = "llm_chat"
     TOOL_CALL = "tool_call"
     FINALIZE = "finalize"
+
 
 class ExecutionContext(BaseModel):
     request_id: str
@@ -20,10 +23,12 @@ class ExecutionContext(BaseModel):
     task_type: TaskType = TaskType.CHAT
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+
 class SessionMessage(BaseModel):
     role: str
     content: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
 
 class SessionState(BaseModel):
     session_id: str
@@ -31,13 +36,16 @@ class SessionState(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+
 class PlanStep(BaseModel):
     step_type: PlanStepType
     name: str
     payload: dict[str, Any] = Field(default_factory=dict)
 
+
 class ExecutionPlan(BaseModel):
     steps: list[PlanStep] = Field(default_factory=list)
+
 
 class OrchestratorResult(BaseModel):
     request_id: str

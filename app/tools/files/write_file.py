@@ -25,7 +25,9 @@ class WriteFileTool(ITool):
         if not isinstance(content, str):
             raise ToolInputError("File content must be a string")
         if mode not in {"create", "overwrite"}:
-            raise ToolInputError("Write mode must be either create or overwrite", details={"mode": mode})
+            raise ToolInputError(
+                "Write mode must be either create or overwrite", details={"mode": mode}
+            )
 
         content_size = len(content.encode("utf-8"))
         if content_size > self.max_bytes:
@@ -46,7 +48,9 @@ class WriteFileTool(ITool):
         return {"path": str(path), "written": True, "mode": mode, "size": content_size}
 
     def _atomic_write(self, path: Path, content: str) -> None:
-        fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent), text=True)
+        fd, temp_name = tempfile.mkstemp(
+            prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent), text=True
+        )
         temp_path = Path(temp_name)
         try:
             with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:

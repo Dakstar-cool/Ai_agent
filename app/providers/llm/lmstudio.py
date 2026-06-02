@@ -29,23 +29,47 @@ class LMStudioProvider(ILLMProvider):
         }
 
         try:
-            response = await self._client.post(f"{self.base_url}/chat/completions", json=payload)
+            response = await self._client.post(
+                f"{self.base_url}/chat/completions", json=payload
+            )
             response.raise_for_status()
         except httpx.ConnectError as exc:
-            logger.warning("LM Studio connect failed: base_url=%s model=%s", self.base_url, payload["model"])
+            logger.warning(
+                "LM Studio connect failed: base_url=%s model=%s",
+                self.base_url,
+                payload["model"],
+            )
             raise LLMProviderUnavailableError(
-                details={"base_url": self.base_url, "model": str(payload["model"]), "reason": "connect_error"}
+                details={
+                    "base_url": self.base_url,
+                    "model": str(payload["model"]),
+                    "reason": "connect_error",
+                }
             ) from exc
         except httpx.TimeoutException as exc:
-            logger.warning("LM Studio timeout: base_url=%s model=%s timeout=%s", self.base_url, payload["model"], self.timeout)
+            logger.warning(
+                "LM Studio timeout: base_url=%s model=%s timeout=%s",
+                self.base_url,
+                payload["model"],
+                self.timeout,
+            )
             raise LLMProviderUnavailableError(
                 message="LLM backend timed out",
-                details={"base_url": self.base_url, "model": str(payload["model"]), "reason": "timeout"},
+                details={
+                    "base_url": self.base_url,
+                    "model": str(payload["model"]),
+                    "reason": "timeout",
+                },
             ) from exc
         except httpx.HTTPStatusError as exc:
             status = exc.response.status_code if exc.response is not None else None
             body_preview = exc.response.text[:500] if exc.response is not None else ""
-            logger.warning("LM Studio bad status: status=%s base_url=%s model=%s", status, self.base_url, payload["model"])
+            logger.warning(
+                "LM Studio bad status: status=%s base_url=%s model=%s",
+                status,
+                self.base_url,
+                payload["model"],
+            )
             raise LLMProviderBadResponseError(
                 message="LLM backend returned an HTTP error",
                 details={
@@ -56,34 +80,55 @@ class LMStudioProvider(ILLMProvider):
                 },
             ) from exc
         except httpx.RequestError as exc:
-            logger.warning("LM Studio request failed: base_url=%s model=%s error=%s", self.base_url, payload["model"], exc.__class__.__name__)
+            logger.warning(
+                "LM Studio request failed: base_url=%s model=%s error=%s",
+                self.base_url,
+                payload["model"],
+                exc.__class__.__name__,
+            )
             raise LLMProviderUnavailableError(
-                details={"base_url": self.base_url, "model": str(payload["model"]), "reason": exc.__class__.__name__}
+                details={
+                    "base_url": self.base_url,
+                    "model": str(payload["model"]),
+                    "reason": exc.__class__.__name__,
+                }
             ) from exc
 
         try:
             data = response.json()
         except ValueError as exc:
-            logger.warning("LM Studio returned non-JSON response: base_url=%s", self.base_url)
+            logger.warning(
+                "LM Studio returned non-JSON response: base_url=%s", self.base_url
+            )
             raise LLMProviderBadResponseError(
                 details={"base_url": self.base_url, "body_preview": response.text[:500]}
             ) from exc
 
         choices = data.get("choices", [])
         if not choices:
-            logger.warning("LM Studio returned empty choices: base_url=%s", self.base_url)
+            logger.warning(
+                "LM Studio returned empty choices: base_url=%s", self.base_url
+            )
             raise LLMProviderBadResponseError(
                 message="LLM backend returned no choices",
-                details={"base_url": self.base_url, "response_keys": sorted(data.keys())},
+                details={
+                    "base_url": self.base_url,
+                    "response_keys": sorted(data.keys()),
+                },
             )
 
         message = choices[0].get("message", {})
         content = message.get("content", "")
         if not isinstance(content, str):
-            logger.warning("LM Studio returned non-string content: base_url=%s", self.base_url)
+            logger.warning(
+                "LM Studio returned non-string content: base_url=%s", self.base_url
+            )
             raise LLMProviderBadResponseError(
                 message="LLM backend returned invalid message content",
-                details={"base_url": self.base_url, "content_type": type(content).__name__},
+                details={
+                    "base_url": self.base_url,
+                    "content_type": type(content).__name__,
+                },
             )
 
         return content

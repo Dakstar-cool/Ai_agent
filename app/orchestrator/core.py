@@ -98,7 +98,9 @@ class Orchestrator:
             )
             llm_reply = f"Execution failed verification: {error}"
         else:
-            execution_log.append(ExecutionStep(name="verification", status="ok", payload={}))
+            execution_log.append(
+                ExecutionStep(name="verification", status="ok", payload={})
+            )
 
         await self._save_memory(
             request=request,
@@ -143,10 +145,20 @@ class Orchestrator:
         execution_log: list[ExecutionStep],
     ) -> str:
         kind = step.get("kind")
-        logger.info("execution_step_start session_id=%s index=%s kind=%s", session_id, index, kind)
+        logger.info(
+            "execution_step_start session_id=%s index=%s kind=%s",
+            session_id,
+            index,
+            kind,
+        )
 
         if kind == "tool":
-            await self._execute_tool_step(step=step, index=index, session_id=session_id, execution_log=execution_log)
+            await self._execute_tool_step(
+                step=step,
+                index=index,
+                session_id=session_id,
+                execution_log=execution_log,
+            )
             return current_reply
 
         if kind == "llm":
@@ -172,12 +184,12 @@ class Orchestrator:
         )
 
     async def _execute_tool_step(
-            self,
-            *,
-            step: dict[str, Any],
-            index: int,
-            session_id: str,
-            execution_log: list[ExecutionStep],
+        self,
+        *,
+        step: dict[str, Any],
+        index: int,
+        session_id: str,
+        execution_log: list[ExecutionStep],
     ) -> None:
         tool_name = step.get("tool_name")
         if not tool_name:
@@ -202,7 +214,9 @@ class Orchestrator:
             status = "ok"
 
             if isinstance(result_payload, dict):
-                exit_code = result_payload.get("exit_code", result_payload.get("returncode"))
+                exit_code = result_payload.get(
+                    "exit_code", result_payload.get("returncode")
+                )
                 if exit_code not in (None, 0):
                     status = "failed"
 
@@ -275,14 +289,13 @@ class Orchestrator:
                 details={"tool_name": tool_name, "error_type": exc.__class__.__name__},
             ) from exc
 
-
     async def _execute_llm_step(
-            self,
-            *,
-            step: dict[str, Any],
-            index: int,
-            session_id: str,
-            execution_log: list[ExecutionStep],
+        self,
+        *,
+        step: dict[str, Any],
+        index: int,
+        session_id: str,
+        execution_log: list[ExecutionStep],
     ) -> str:
         args = step.get("args")
         if not isinstance(args, dict):
@@ -362,7 +375,9 @@ class Orchestrator:
         llm_reply: str,
         verification_ok: bool,
     ) -> None:
-        if not self._should_save_memory(request=request, llm_reply=llm_reply, verification_ok=verification_ok):
+        if not self._should_save_memory(
+            request=request, llm_reply=llm_reply, verification_ok=verification_ok
+        ):
             logger.info("memory_save_skipped session_id=%s route=%s", session_id, route)
             return
 
@@ -387,7 +402,9 @@ class Orchestrator:
                 exc.__class__.__name__,
             )
 
-    def _should_save_memory(self, *, request: ChatRequest, llm_reply: str, verification_ok: bool) -> bool:
+    def _should_save_memory(
+        self, *, request: ChatRequest, llm_reply: str, verification_ok: bool
+    ) -> bool:
         if not verification_ok:
             return False
 
@@ -398,7 +415,10 @@ class Orchestrator:
         if request.message.strip().lower() in placeholders:
             return False
 
-        if request.project_path and request.project_path.strip().lower() in placeholders:
+        if (
+            request.project_path
+            and request.project_path.strip().lower() in placeholders
+        ):
             return False
 
         if llm_reply.startswith("Execution failed verification:"):

@@ -1,5 +1,6 @@
 from app.orchestrator.models import TaskType
 
+
 class SimpleTaskRouter:
     def route(self, user_message: str) -> TaskType:
         text = user_message.lower()

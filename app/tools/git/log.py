@@ -12,7 +12,12 @@ class GitLogTool(ITool):
     name = "git_log"
     description = "Run read-only git log"
 
-    def __init__(self, root_dir: str | Path, timeout_seconds: float = 15.0, max_output_chars: int = 20_000) -> None:
+    def __init__(
+        self,
+        root_dir: str | Path,
+        timeout_seconds: float = 15.0,
+        max_output_chars: int = 20_000,
+    ) -> None:
         self.runner = GitReadOnlyRunner(root_dir, timeout_seconds, max_output_chars)
 
     async def run(self, **kwargs: Any) -> dict[str, Any]:

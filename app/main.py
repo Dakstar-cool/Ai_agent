@@ -64,7 +64,9 @@ def create_app() -> FastAPI:
         request_id = request.headers.get("X-Request-ID", str(uuid4()))
         token = set_request_id(request_id)
         started = time.perf_counter()
-        logger.info("request_started method=%s path=%s", request.method, request.url.path)
+        logger.info(
+            "request_started method=%s path=%s", request.method, request.url.path
+        )
         try:
             client_id = request.client.host if request.client else "unknown"
             allowed = _rate_limit_allows_request(
@@ -74,14 +76,21 @@ def create_app() -> FastAPI:
                 now=time.monotonic(),
             )
             if not allowed:
-                logger.warning("rate_limit_exceeded method=%s path=%s client=%s", request.method, request.url.path, client_id)
+                logger.warning(
+                    "rate_limit_exceeded method=%s path=%s client=%s",
+                    request.method,
+                    request.url.path,
+                    client_id,
+                )
                 response = JSONResponse(
                     status_code=429,
                     content={
                         "error": {
                             "code": "rate_limit_exceeded",
                             "message": "Too many requests",
-                            "details": {"limit_per_minute": settings.rate_limit_requests_per_minute},
+                            "details": {
+                                "limit_per_minute": settings.rate_limit_requests_per_minute
+                            },
                             "request_id": request_id,
                         }
                     },
@@ -92,7 +101,12 @@ def create_app() -> FastAPI:
             response = await call_next(request)
         finally:
             duration_ms = round((time.perf_counter() - started) * 1000, 2)
-            logger.info("request_finished method=%s path=%s duration_ms=%s", request.method, request.url.path, duration_ms)
+            logger.info(
+                "request_finished method=%s path=%s duration_ms=%s",
+                request.method,
+                request.url.path,
+                duration_ms,
+            )
             reset_request_id(token)
 
         response.headers["X-Request-ID"] = request_id
@@ -101,7 +115,12 @@ def create_app() -> FastAPI:
     @app.exception_handler(AppError)
     async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
         request_id = get_request_id()
-        logger.warning("app_error path=%s code=%s message=%s", request.url.path, exc.code, exc.message)
+        logger.warning(
+            "app_error path=%s code=%s message=%s",
+            request.url.path,
+            exc.code,
+            exc.message,
+        )
         return JSONResponse(
             status_code=exc.status_code,
             content={
@@ -117,7 +136,11 @@ def create_app() -> FastAPI:
     @app.exception_handler(Exception)
     async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
         request_id = get_request_id()
-        logger.exception("unhandled_exception path=%s error=%s", request.url.path, exc.__class__.__name__)
+        logger.exception(
+            "unhandled_exception path=%s error=%s",
+            request.url.path,
+            exc.__class__.__name__,
+        )
         return JSONResponse(
             status_code=500,
             content={

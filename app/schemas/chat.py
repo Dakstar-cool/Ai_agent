@@ -18,7 +18,9 @@ class ChatRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_metadata_size(self) -> "ChatRequest":
-        metadata_size = len(json.dumps(self.metadata, ensure_ascii=False).encode("utf-8"))
+        metadata_size = len(
+            json.dumps(self.metadata, ensure_ascii=False).encode("utf-8")
+        )
         if metadata_size > MAX_METADATA_BYTES:
             raise ValueError(f"metadata must be at most {MAX_METADATA_BYTES} bytes")
         return self

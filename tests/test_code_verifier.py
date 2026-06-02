@@ -6,7 +6,9 @@ from app.orchestrator.verification.code_verifier import CodeVerifier
 
 
 @pytest.mark.asyncio
-async def test_code_verifier_returns_structured_checks(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_code_verifier_returns_structured_checks(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     verifier = CodeVerifier(root_dir=tmp_path)
 
     async def fake_run_check(name: str, command: list[str]) -> dict:
@@ -24,10 +26,16 @@ async def test_code_verifier_returns_structured_checks(tmp_path, monkeypatch: py
         }
 
     monkeypatch.setattr(verifier, "_run_check", fake_run_check)
-    monkeypatch.setattr("app.orchestrator.verification.code_verifier.shutil.which", lambda name: None)
+    monkeypatch.setattr(
+        "app.orchestrator.verification.code_verifier.shutil.which", lambda name: None
+    )
 
     result = await verifier.verify()
 
     assert result["ok"] is True
-    assert [check["name"] for check in result["checks"]] == ["compileall", "pytest", "ruff"]
+    assert [check["name"] for check in result["checks"]] == [
+        "compileall",
+        "pytest",
+        "ruff",
+    ]
     assert result["checks"][2]["skipped"] is True

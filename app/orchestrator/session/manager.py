@@ -25,7 +25,7 @@ class SessionManager:
         session = self.get_or_create(session_id)
         session.history.append({"role": role, "content": content})
         if len(session.history) > self.max_messages:
-            del session.history[:-self.max_messages]
+            del session.history[: -self.max_messages]
 
     def _evict_oldest_session_if_needed(self) -> None:
         if len(self._sessions) < self.max_sessions:

@@ -1,5 +1,9 @@
 from app.providers.memory.base import IMemoryService
-from app.providers.memory.models import MemoryRecallItem, MemoryRecallQuery, MemoryRecord
+from app.providers.memory.models import (
+    MemoryRecallItem,
+    MemoryRecallQuery,
+    MemoryRecord,
+)
 
 
 class NoOpMemoryService(IMemoryService):

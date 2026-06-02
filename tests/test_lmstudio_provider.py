@@ -8,7 +8,9 @@ from app.providers.llm.lmstudio import LMStudioProvider
 
 
 @pytest.mark.asyncio
-async def test_lmstudio_provider_maps_connect_error(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_lmstudio_provider_maps_connect_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     async def fake_post(self, url, json):
         raise httpx.ConnectError("boom")
 

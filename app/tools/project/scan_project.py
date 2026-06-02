@@ -5,7 +5,7 @@ from typing import Any
 
 from app.errors import ToolInputError
 from app.tools.base import ITool
-from app.tools.path_safety import IGNORED_DIRS, WorkspacePathPolicy
+from app.tools.path_safety import IGNORED_DIRS, WorkspacePathPolicy, iter_safe_files
 
 
 class ScanProjectTool(ITool):
@@ -24,15 +24,13 @@ class ScanProjectTool(ITool):
 
         root = self.policy.resolve(raw_path, must_exist=True)
         if not root.is_dir():
-            raise ToolInputError("Scan path must be a directory", details={"path": str(root)})
+            raise ToolInputError(
+                "Scan path must be a directory", details={"path": str(root)}
+            )
 
         files: list[dict[str, Any]] = []
         truncated = False
-        for item in sorted(root.rglob("*")):
-            if self.policy.is_ignored_path(item, ignored_dirs=IGNORED_DIRS):
-                continue
-            if not item.is_file():
-                continue
+        for item in sorted(iter_safe_files(root, ignored_dirs=IGNORED_DIRS)):
             files.append(
                 {
                     "path": item.relative_to(self.policy.root_dir).as_posix(),
@@ -43,4 +41,9 @@ class ScanProjectTool(ITool):
                 truncated = True
                 break
 
-        return {"root": str(root), "files": files, "count": len(files), "truncated": truncated}
+        return {
+            "root": str(root),
+            "files": files,
+            "count": len(files),
+            "truncated": truncated,
+        }

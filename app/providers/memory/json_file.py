@@ -10,14 +10,20 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.providers.memory.base import IMemoryService
-from app.providers.memory.models import MemoryRecallItem, MemoryRecallQuery, MemoryRecord
+from app.providers.memory.models import (
+    MemoryRecallItem,
+    MemoryRecallQuery,
+    MemoryRecord,
+)
 
 logger = logging.getLogger(__name__)
 _TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 
 
 class JsonFileMemoryService(IMemoryService):
-    def __init__(self, storage_path: str, recall_limit: int = 5, max_recall_limit: int = 20) -> None:
+    def __init__(
+        self, storage_path: str, recall_limit: int = 5, max_recall_limit: int = 20
+    ) -> None:
         self.storage_path = Path(storage_path).resolve()
         self.max_recall_limit = max(1, max_recall_limit)
         self.recall_limit = min(max(1, recall_limit), self.max_recall_limit)
@@ -64,9 +70,13 @@ class JsonFileMemoryService(IMemoryService):
                 return []
 
             with self.storage_path.open("r", encoding="utf-8") as fh:
-                self._scan_records(fh, query, query_tokens, normalized_project_path, ranked, limit)
+                self._scan_records(
+                    fh, query, query_tokens, normalized_project_path, ranked, limit
+                )
 
-        top_ranked = heapq.nlargest(limit, ranked, key=lambda item: (item[0], item[1], item[2]))
+        top_ranked = heapq.nlargest(
+            limit, ranked, key=lambda item: (item[0], item[1], item[2])
+        )
         results = [item[3] for item in top_ranked]
         logger.info(
             "memory_recall_completed path=%s query_session_id=%s query_project_path=%s matched=%s",
@@ -124,7 +134,11 @@ class JsonFileMemoryService(IMemoryService):
             )
             if len(ranked) < limit:
                 heapq.heappush(ranked, entry)
-            elif (entry[0], entry[1], entry[2]) > (ranked[0][0], ranked[0][1], ranked[0][2]):
+            elif (entry[0], entry[1], entry[2]) > (
+                ranked[0][0],
+                ranked[0][1],
+                ranked[0][2],
+            ):
                 heapq.heapreplace(ranked, entry)
 
     def _coerce_limit(self, limit: int | None) -> int:
@@ -141,12 +155,14 @@ class JsonFileMemoryService(IMemoryService):
         project_path: str | None,
         route: str | None,
     ) -> int:
-        haystack = " ".join([
-            record.user_message,
-            record.assistant_reply,
-            record.route,
-            json.dumps(record.metadata, ensure_ascii=False),
-        ])
+        haystack = " ".join(
+            [
+                record.user_message,
+                record.assistant_reply,
+                record.route,
+                json.dumps(record.metadata, ensure_ascii=False),
+            ]
+        )
         score = self._score(query_tokens, haystack)
 
         if project_path and record.project_path == project_path:

@@ -12,7 +12,12 @@ class GitDiffTool(ITool):
     name = "git_diff"
     description = "Run read-only git diff"
 
-    def __init__(self, root_dir: str | Path, timeout_seconds: float = 15.0, max_output_chars: int = 20_000) -> None:
+    def __init__(
+        self,
+        root_dir: str | Path,
+        timeout_seconds: float = 15.0,
+        max_output_chars: int = 20_000,
+    ) -> None:
         self.policy = WorkspacePathPolicy(Path(root_dir))
         self.runner = GitReadOnlyRunner(root_dir, timeout_seconds, max_output_chars)
 

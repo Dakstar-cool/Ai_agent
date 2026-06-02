@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from app.providers.memory.models import MemoryRecallItem, MemoryRecallQuery, MemoryRecord
+from app.providers.memory.models import (
+    MemoryRecallItem,
+    MemoryRecallQuery,
+    MemoryRecord,
+)
 
 
 class IMemoryService(ABC):

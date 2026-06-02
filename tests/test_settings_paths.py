@@ -16,9 +16,15 @@ def test_settings_resolve_project_path_returns_absolute() -> None:
 
 
 def test_memory_factory_uses_resolved_absolute_path() -> None:
-    settings = Settings(enable_memory=True, memory_backend="json", memory_file_path="data/memory/test.jsonl")
+    settings = Settings(
+        enable_memory=True,
+        memory_backend="json",
+        memory_file_path="data/memory/test.jsonl",
+    )
     service = build_memory_service(settings)
 
     assert isinstance(service, JsonFileMemoryService)
     assert service.storage_path.is_absolute()
-    assert str(service.storage_path).endswith(str(Path("data") / "memory" / "test.jsonl"))
+    assert str(service.storage_path).endswith(
+        str(Path("data") / "memory" / "test.jsonl")
+    )

@@ -28,5 +28,8 @@ def build_memory_service(settings: Settings) -> IMemoryService:
             max_recall_limit=settings.memory_max_recall_limit,
         )
 
-    logger.warning("memory_service_initialized backend=noop enabled=true unsupported_backend=%s", settings.memory_backend)
+    logger.warning(
+        "memory_service_initialized backend=noop enabled=true unsupported_backend=%s",
+        settings.memory_backend,
+    )
     return NoOpMemoryService()

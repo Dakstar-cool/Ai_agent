@@ -6,13 +6,17 @@ class Planner:
         return [{"kind": "llm", "args": {"messages": self._build_messages(context)}}]
 
     def _build_messages(self, context: dict[str, Any]) -> list[dict[str, str]]:
-        messages: list[dict[str, str]] = [{"role": "system", "content": context["system_prompt"]}]
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": context["system_prompt"]}
+        ]
 
         for item in context["history"]:
             messages.append({"role": item["role"], "content": item["content"]})
 
         if context["memories"]:
-            memory_block = "\n".join(f"- {self._format_memory(m)}" for m in context["memories"])
+            memory_block = "\n".join(
+                f"- {self._format_memory(m)}" for m in context["memories"]
+            )
             messages.append(
                 {
                     "role": "system",
@@ -22,7 +26,9 @@ class Planner:
                     ),
                 }
             )
-            messages.append({"role": "user", "content": f"Recalled memory data:\n{memory_block}"})
+            messages.append(
+                {"role": "user", "content": f"Recalled memory data:\n{memory_block}"}
+            )
 
         messages.append({"role": "user", "content": context["user_message"]})
         return messages

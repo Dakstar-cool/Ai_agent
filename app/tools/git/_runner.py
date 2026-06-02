@@ -7,7 +7,12 @@ from typing import Any
 
 
 class GitReadOnlyRunner:
-    def __init__(self, root_dir: str | Path, timeout_seconds: float = 15.0, max_output_chars: int = 20_000) -> None:
+    def __init__(
+        self,
+        root_dir: str | Path,
+        timeout_seconds: float = 15.0,
+        max_output_chars: int = 20_000,
+    ) -> None:
         self.root_dir = Path(root_dir).resolve()
         self.timeout_seconds = timeout_seconds
         self.max_output_chars = max_output_chars
@@ -21,7 +26,9 @@ class GitReadOnlyRunner:
             stderr=asyncio.subprocess.PIPE,
         )
         try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout_seconds)
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=self.timeout_seconds
+            )
             timed_out = False
             exit_code = process.returncode
         except asyncio.TimeoutError:

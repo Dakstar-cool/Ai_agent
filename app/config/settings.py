@@ -37,7 +37,9 @@ class Settings(BaseSettings):
     tool_max_output_chars: int = 20_000
     tool_max_file_bytes: int = 200_000
 
-    model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=ROOT_DIR / ".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     def resolve_project_path(self, value: str) -> Path:
         path = Path(value)
@@ -46,7 +48,11 @@ class Settings(BaseSettings):
         return ROOT_DIR / path
 
     def allowed_tool_commands(self) -> set[str]:
-        return {item.strip().lower() for item in self.tool_allowed_commands.split(",") if item.strip()}
+        return {
+            item.strip().lower()
+            for item in self.tool_allowed_commands.split(",")
+            if item.strip()
+        }
 
 
 @lru_cache(maxsize=1)

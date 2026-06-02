@@ -8,7 +8,12 @@ from app.tools.terminal.run_command import RunCommandTool
 
 
 class CodeVerifier:
-    def __init__(self, root_dir: str | Path, timeout_seconds: float = 60.0, max_output_chars: int = 20_000) -> None:
+    def __init__(
+        self,
+        root_dir: str | Path,
+        timeout_seconds: float = 60.0,
+        max_output_chars: int = 20_000,
+    ) -> None:
         self.root_dir = Path(root_dir).resolve()
         self.tool = RunCommandTool(
             root_dir=self.root_dir,
@@ -19,7 +24,10 @@ class CodeVerifier:
 
     async def verify(self) -> dict[str, Any]:
         checks = [
-            await self._run_check("compileall", ["uv", "run", "python", "-m", "compileall", "app", "tests"]),
+            await self._run_check(
+                "compileall",
+                ["uv", "run", "python", "-m", "compileall", "app", "tests"],
+            ),
             await self._run_check("pytest", ["uv", "run", "pytest", "-q"]),
         ]
 

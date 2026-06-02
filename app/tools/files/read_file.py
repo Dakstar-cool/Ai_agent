@@ -25,12 +25,21 @@ class ReadFileTool(ITool):
 
         size = path.stat().st_size
         if is_probably_binary_file(path):
-            raise ToolInputError("Binary files cannot be read by this tool", details={"path": str(path)})
+            raise ToolInputError(
+                "Binary files cannot be read by this tool", details={"path": str(path)}
+            )
 
-        raw = path.read_bytes()
+        with path.open("rb") as handle:
+            raw = handle.read(self.max_bytes + 1)
+
         truncated = len(raw) > self.max_bytes
         if truncated:
             raw = raw[: self.max_bytes]
 
         content = raw.decode("utf-8", errors="replace")
-        return {"path": str(path), "size": size, "truncated": truncated, "content": content}
+        return {
+            "path": str(path),
+            "size": size,
+            "truncated": truncated,
+            "content": content,
+        }

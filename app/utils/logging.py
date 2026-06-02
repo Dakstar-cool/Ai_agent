@@ -13,7 +13,12 @@ class RequestIdFilter(logging.Filter):
         return True
 
 
-def configure_logging(level: str, log_dir: str = "logs", log_file_name: str = "app.log", log_to_file: bool = True) -> None:
+def configure_logging(
+    level: str,
+    log_dir: str = "logs",
+    log_file_name: str = "app.log",
+    log_to_file: bool = True,
+) -> None:
     root_logger = logging.getLogger()
     if getattr(root_logger, "_local_ai_agent_configured", False):
         return

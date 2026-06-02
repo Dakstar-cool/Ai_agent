@@ -1,6 +1,7 @@
 from datetime import datetime
 from app.orchestrator.models import SessionState, SessionMessage
 
+
 class InMemorySessionStore:
     def __init__(self) -> None:
         self._sessions: dict[str, SessionState] = {}

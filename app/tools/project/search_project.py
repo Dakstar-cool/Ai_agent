@@ -5,14 +5,26 @@ from typing import Any
 
 from app.errors import ToolInputError
 from app.tools.base import ITool
-from app.tools.path_safety import IGNORED_DIRS, WorkspacePathPolicy, is_probably_binary_file
+from app.tools.path_safety import (
+    IGNORED_DIRS,
+    WorkspacePathPolicy,
+    iter_safe_files,
+    is_probably_binary_file,
+)
 
 
 class SearchProjectTool(ITool):
     name = "search_project"
-    description = "Search text in project files while skipping protected and ignored directories"
+    description = (
+        "Search text in project files while skipping protected and ignored directories"
+    )
 
-    def __init__(self, root_dir: str | Path, max_results: int = 100, max_file_bytes: int = 200_000) -> None:
+    def __init__(
+        self,
+        root_dir: str | Path,
+        max_results: int = 100,
+        max_file_bytes: int = 200_000,
+    ) -> None:
         self.policy = WorkspacePathPolicy(Path(root_dir))
         self.max_results = max_results
         self.max_file_bytes = max_file_bytes
@@ -28,19 +40,23 @@ class SearchProjectTool(ITool):
 
         root = self.policy.resolve(raw_path, must_exist=True)
         if not root.is_dir():
-            raise ToolInputError("Search path must be a directory", details={"path": str(root)})
+            raise ToolInputError(
+                "Search path must be a directory", details={"path": str(root)}
+            )
 
         matches: list[dict[str, Any]] = []
         truncated = False
         query_folded = query.casefold()
 
-        for item in sorted(root.rglob("*")):
-            if self.policy.is_ignored_path(item, ignored_dirs=IGNORED_DIRS) or not item.is_file():
-                continue
-            if item.stat().st_size > self.max_file_bytes or is_probably_binary_file(item):
+        for item in sorted(iter_safe_files(root, ignored_dirs=IGNORED_DIRS)):
+            if item.stat().st_size > self.max_file_bytes or is_probably_binary_file(
+                item
+            ):
                 continue
 
-            for line_number, line in enumerate(item.read_text(encoding="utf-8", errors="replace").splitlines(), start=1):
+            for line_number, line in enumerate(
+                item.read_text(encoding="utf-8", errors="replace").splitlines(), start=1
+            ):
                 if query_folded not in line.casefold():
                     continue
                 matches.append(
@@ -60,4 +76,10 @@ class SearchProjectTool(ITool):
                         "truncated": truncated,
                     }
 
-        return {"root": str(root), "query": query, "matches": matches, "count": len(matches), "truncated": truncated}
+        return {
+            "root": str(root),
+            "query": query,
+            "matches": matches,
+            "count": len(matches),
+            "truncated": truncated,
+        }

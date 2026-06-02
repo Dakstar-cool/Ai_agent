@@ -37,7 +37,9 @@ class RunCommandTool(ITool):
         max_output_chars: int = 20_000,
     ) -> None:
         self.root_dir = Path(root_dir).resolve()
-        self.allowed_commands = {self._normalize_command_name(command) for command in allowed_commands}
+        self.allowed_commands = {
+            self._normalize_command_name(command) for command in allowed_commands
+        }
         self.timeout_seconds = timeout_seconds
         self.max_output_chars = max_output_chars
 
@@ -52,7 +54,10 @@ class RunCommandTool(ITool):
                 raise ToolInputError("Working directory must be a non-empty string")
             working_dir = resolve_workspace_path(self.root_dir, cwd, must_exist=True)
             if not working_dir.is_dir():
-                raise ToolInputError("Working directory is not a directory", details={"cwd": str(working_dir)})
+                raise ToolInputError(
+                    "Working directory is not a directory",
+                    details={"cwd": str(working_dir)},
+                )
 
         started = time.perf_counter()
         process = await asyncio.create_subprocess_exec(
@@ -63,7 +68,9 @@ class RunCommandTool(ITool):
         )
 
         try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout_seconds)
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=self.timeout_seconds
+            )
         except asyncio.TimeoutError:
             process.kill()
             stdout, stderr = await process.communicate()
@@ -77,7 +84,8 @@ class RunCommandTool(ITool):
                 "exit_code": -1,
                 "returncode": -1,
                 "stdout": stdout_text,
-                "stderr": stderr_text or f"Command timed out after {self.timeout_seconds} seconds",
+                "stderr": stderr_text
+                or f"Command timed out after {self.timeout_seconds} seconds",
                 "duration_ms": duration_ms,
                 "timed_out": True,
                 "truncated": stdout_truncated or stderr_truncated,
@@ -102,7 +110,9 @@ class RunCommandTool(ITool):
     def _parse_args(self, kwargs: dict[str, Any]) -> list[str]:
         raw_args = kwargs.get("args")
         if raw_args is not None:
-            if not isinstance(raw_args, list) or not all(isinstance(item, str) and item for item in raw_args):
+            if not isinstance(raw_args, list) or not all(
+                isinstance(item, str) and item for item in raw_args
+            ):
                 raise ToolInputError("Command args must be a non-empty list of strings")
             return raw_args
 
@@ -123,7 +133,7 @@ class RunCommandTool(ITool):
         text = value.decode("utf-8", errors="replace")
         if len(text) <= self.max_output_chars:
             return text, False
-        return text[:self.max_output_chars] + "\n...[truncated]", True
+        return text[: self.max_output_chars] + "\n...[truncated]", True
 
     def _normalize_command_name(self, value: str) -> str:
         name = Path(value).name.lower()
@@ -138,18 +148,29 @@ class RunCommandTool(ITool):
         if executable not in self.allowed_commands:
             raise ToolInputError(
                 "Command is not allowed",
-                details={"command": executable, "allowed_commands": sorted(self.allowed_commands)},
+                details={
+                    "command": executable,
+                    "allowed_commands": sorted(self.allowed_commands),
+                },
             )
 
         lowered = [item.lower() for item in args]
         if self._is_blocked_subcommand(lowered):
-            raise ToolInputError("Command subcommand is blocked", details={"command": args})
+            raise ToolInputError(
+                "Command subcommand is blocked", details={"command": args}
+            )
         if not self._is_allowed_pattern(lowered):
-            raise ToolInputError("Command pattern is not allowed", details={"command": args})
+            raise ToolInputError(
+                "Command pattern is not allowed", details={"command": args}
+            )
 
     def _is_blocked_subcommand(self, args: list[str]) -> bool:
         executable = self._normalize_command_name(args[0])
-        if executable == "git" and len(args) > 1 and args[1] in {"push", "commit", "reset", "clean"}:
+        if (
+            executable == "git"
+            and len(args) > 1
+            and args[1] in {"push", "commit", "reset", "clean"}
+        ):
             return True
         if executable == "python" and len(args) > 1:
             return args[1] == "-c" or args[1:3] == ["-m", "pip"]
@@ -186,7 +207,14 @@ class RunCommandTool(ITool):
         if subcommand == "diff":
             if not rest:
                 return True
-            return rest[0] == "--" and all(not item.startswith("-") for item in rest[1:])
+            return rest[0] == "--" and all(
+                not item.startswith("-") for item in rest[1:]
+            )
         if subcommand == "log":
-            return all(item == "--oneline" or item.startswith("-n") or item.startswith("--max-count=") for item in rest)
+            return all(
+                item == "--oneline"
+                or item.startswith("-n")
+                or item.startswith("--max-count=")
+                for item in rest
+            )
         return False

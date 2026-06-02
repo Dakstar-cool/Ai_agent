@@ -10,7 +10,9 @@ from app.tools.terminal.run_command import RunCommandTool
 
 @pytest.mark.asyncio
 async def test_run_command_allows_safe_git_status_pattern(tmp_path) -> None:
-    tool = RunCommandTool(root_dir=tmp_path, allowed_commands={"git"}, timeout_seconds=20)
+    tool = RunCommandTool(
+        root_dir=tmp_path, allowed_commands={"git"}, timeout_seconds=20
+    )
     result = await tool.run(args=["git", "status"])
 
     assert result["exit_code"] != -1

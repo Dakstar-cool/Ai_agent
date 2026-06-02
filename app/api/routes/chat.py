@@ -34,8 +34,12 @@ def get_orchestrator() -> Orchestrator:
     tool_root = settings.resolve_project_path(settings.tool_workspace_root)
 
     registry = ToolRegistry()
-    registry.register(ReadFileTool(root_dir=tool_root, max_bytes=settings.tool_max_file_bytes))
-    registry.register(WriteFileTool(root_dir=tool_root, max_bytes=settings.tool_max_file_bytes))
+    registry.register(
+        ReadFileTool(root_dir=tool_root, max_bytes=settings.tool_max_file_bytes)
+    )
+    registry.register(
+        WriteFileTool(root_dir=tool_root, max_bytes=settings.tool_max_file_bytes)
+    )
     registry.register(
         RunCommandTool(
             root_dir=tool_root,
@@ -45,7 +49,11 @@ def get_orchestrator() -> Orchestrator:
         )
     )
     registry.register(ScanProjectTool(root_dir=tool_root))
-    registry.register(SearchProjectTool(root_dir=tool_root, max_file_bytes=settings.tool_max_file_bytes))
+    registry.register(
+        SearchProjectTool(
+            root_dir=tool_root, max_file_bytes=settings.tool_max_file_bytes
+        )
+    )
     registry.register(
         GitStatusTool(
             root_dir=tool_root,
@@ -111,7 +119,9 @@ def require_api_key(
     )
 
 
-@router.post("/chat", response_model=ChatResponse, dependencies=[Depends(require_api_key)])
+@router.post(
+    "/chat", response_model=ChatResponse, dependencies=[Depends(require_api_key)]
+)
 async def chat(request: ChatRequest) -> ChatResponse:
     orchestrator = get_orchestrator()
     return await orchestrator.handle(request)
