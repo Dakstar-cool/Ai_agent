@@ -87,9 +87,15 @@ async def test_lmstudio_provider_sends_and_parses_tool_calls(
 
 @pytest.mark.asyncio
 async def test_lmstudio_provider_disables_environment_proxies() -> None:
-    provider = LMStudioProvider(base_url="http://127.0.0.1:1234/v1", model="demo")
+    provider = LMStudioProvider(
+        base_url="http://127.0.0.1:1234/v1",
+        model="demo",
+        api_key="memory-only-secret",
+    )
 
     assert provider._client._trust_env is False
+    assert provider._client.headers["Authorization"] == "Bearer memory-only-secret"
+    assert provider.requires_network_permission is False
 
     await provider.aclose()
 
@@ -157,4 +163,50 @@ async def test_lmstudio_provider_rejects_invalid_tool_arguments(
     with pytest.raises(LLMProviderBadResponseError):
         await provider.chat(messages=[{"role": "user", "content": "read"}])
 
+    await provider.aclose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [400, 500])
+async def test_lmstudio_provider_does_not_expose_response_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+    status: int,
+) -> None:
+    async def fake_post(self, url, json):
+        return httpx.Response(
+            status,
+            request=httpx.Request("POST", url),
+            text="traceback API_KEY=do-not-expose",
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    provider = LMStudioProvider(base_url="http://127.0.0.1:1234/v1", model="demo")
+
+    with pytest.raises(LLMProviderBadResponseError) as error:
+        await provider.chat(messages=[{"role": "user", "content": "hello"}])
+
+    assert "do-not-expose" not in str(error.value.details)
+    assert "traceback" not in str(error.value.details).casefold()
+    await provider.aclose()
+
+
+@pytest.mark.asyncio
+async def test_lmstudio_provider_does_not_expose_non_json_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_post(self, url, json):
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            text="traceback SECRET=do-not-expose",
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    provider = LMStudioProvider(base_url="http://127.0.0.1:1234/v1", model="demo")
+
+    with pytest.raises(LLMProviderBadResponseError) as error:
+        await provider.chat(messages=[{"role": "user", "content": "hello"}])
+
+    assert error.value.details["reason"] == "non_json_response"
+    assert "do-not-expose" not in str(error.value.details)
     await provider.aclose()

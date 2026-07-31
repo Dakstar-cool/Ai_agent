@@ -200,7 +200,7 @@ class ToolDispatcher:
                 ).hexdigest()
             )
             audit = {
-                "schema_version": "0.2.0",
+                "schema_version": "0.3.0",
                 "tool_call_id": tool_call.id,
                 "tool": tool.name,
                 "mutation_kind": tool.mutation_kind or "mutation",

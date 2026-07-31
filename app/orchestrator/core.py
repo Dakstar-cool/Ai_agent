@@ -79,6 +79,15 @@ class Orchestrator:
                 status_code=400,
             ) from exc
         policy_usage = PolicyUsage()
+        if (
+            getattr(self.llm_provider, "requires_network_permission", False)
+            and not run_policy.network_allowed
+        ):
+            raise AppError(
+                message="Remote LLM provider requires explicit run network permission",
+                code="network_permission_required",
+                status_code=403,
+            )
 
         execution_log: list[ExecutionStep] = []
         approved_exchange = await self._maybe_execute_approved_tool(

@@ -1,4 +1,5 @@
 import asyncio
+import hmac
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -14,8 +15,10 @@ from app.orchestrator.core import Orchestrator
 from app.orchestrator.session.manager import SessionManager
 from app.orchestrator.verification.code_verifier import CodeVerifier
 from app.providers.llm.lmstudio import LMStudioProvider
+from app.providers.llm.runtime_config import get_runtime_provider
 from app.providers.memory.factory import build_memory_service
 from app.schemas.chat import ChatRequest, ChatResponse
+from app.security import get_bootstrap_token
 from app.state.runtime import (
     get_default_workspace,
     get_state_store,
@@ -67,9 +70,11 @@ def _build_orchestrator(
 ) -> Orchestrator:
     settings = get_settings()
 
+    runtime_provider = get_runtime_provider()
     llm_provider = LMStudioProvider(
-        base_url=settings.lmstudio_base_url,
-        model=settings.lmstudio_model,
+        base_url=(runtime_provider.base_url if runtime_provider else settings.lmstudio_base_url),
+        model=(runtime_provider.model if runtime_provider else settings.lmstudio_model),
+        api_key=(runtime_provider.api_key if runtime_provider else None),
     )
     memory_service = build_memory_service(settings)
     worktree_service = TaskWorktreeService(
@@ -176,14 +181,22 @@ def require_api_key(
     authorization: Annotated[str | None, Header()] = None,
 ) -> None:
     settings = get_settings()
-    if not settings.api_key:
+    bootstrap_token = get_bootstrap_token()
+    expected_token = bootstrap_token or settings.api_key
+    if not expected_token:
         return
 
     bearer = None
     if authorization and authorization.lower().startswith("bearer "):
         bearer = authorization[7:].strip()
 
-    if x_api_key == settings.api_key or bearer == settings.api_key:
+    if bearer is not None and hmac.compare_digest(bearer, expected_token):
+        return
+    if (
+        bootstrap_token is None
+        and x_api_key is not None
+        and hmac.compare_digest(x_api_key, expected_token)
+    ):
         return
 
     raise HTTPException(

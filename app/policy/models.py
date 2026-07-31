@@ -54,7 +54,7 @@ class PolicyBoundary(BaseModel):
 
 
 class RunPolicy(BaseModel):
-    schema_version: Literal["0.2.0"] = "0.2.0"
+    schema_version: Literal["0.3.0"] = "0.3.0"
     mode: AutonomyMode = AutonomyMode.SAFE
     ttl_seconds: int = Field(default=0, ge=0, le=86_400)
     issued_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

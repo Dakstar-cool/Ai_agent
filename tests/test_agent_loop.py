@@ -7,7 +7,9 @@ from typing import Any
 
 import pytest
 
+from app.errors import AppError
 from app.orchestrator.core import Orchestrator
+from app.policy import RunPolicy
 from app.providers.llm.models import LLMResponse, ToolCall
 from app.providers.memory.noop import NoOpMemoryService
 from app.schemas.chat import ChatRequest
@@ -65,6 +67,10 @@ class SlowProvider:
         return LLMResponse(content="too late")
 
 
+class RemoteProvider(SequencedProvider):
+    requires_network_permission = True
+
+
 def _orchestrator(
     provider,
     registry: ToolRegistry,
@@ -89,6 +95,29 @@ def _tool_messages(provider: SequencedProvider, call_index: int = 1) -> list[dic
         for message in provider.calls[call_index]["messages"]
         if message["role"] == "tool"
     ]
+
+
+@pytest.mark.asyncio
+async def test_remote_provider_requires_explicit_network_permission() -> None:
+    provider = RemoteProvider([LLMResponse(content="allowed")])
+    orchestrator = _orchestrator(provider, ToolRegistry())
+
+    with pytest.raises(AppError) as error:
+        await orchestrator.handle(ChatRequest(message="hello", session_id="remote"))
+
+    assert error.value.code == "network_permission_required"
+    assert provider.calls == []
+
+    policy = RunPolicy.safe().model_copy(update={"network_allowed": True})
+    response = await orchestrator.handle(
+        ChatRequest(
+            message="hello",
+            session_id="remote",
+            metadata={"run_policy": policy.model_dump(mode="json")},
+        )
+    )
+
+    assert response.reply == "allowed"
 
 
 @pytest.mark.asyncio

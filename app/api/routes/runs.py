@@ -15,6 +15,7 @@ from app.runs.service import RunService
 from app.schemas.runs import (
     ApprovalDecisionRequest,
     CreateRunRequest,
+    PendingApprovalResponse,
     RegisterWorkspaceRequest,
     RunEventResponse,
     RunResponse,
@@ -176,3 +177,40 @@ async def decide_approval(
         actor_id=decision.actor_id,
     )
     return RunResponse.from_record(run)
+
+
+@router.get(
+    "/approvals/{approval_id}",
+    response_model=PendingApprovalResponse,
+)
+async def get_pending_approval(
+    approval_id: Annotated[str, ApiPath(pattern=r"^[a-f0-9-]{32,36}$")],
+) -> PendingApprovalResponse:
+    record = get_state_store().get_approval_record(approval_id)
+    if record is None or record["state"] != "pending":
+        raise AppError(
+            message="Pending approval was not found",
+            code="approval_not_found",
+            status_code=404,
+        )
+    run_id = record["run_id"]
+    tool_call = record["tool_call"]
+    if not isinstance(run_id, str) or not isinstance(tool_call, dict):
+        raise AppError(
+            message="Pending approval is invalid",
+            code="approval_invalid",
+            status_code=409,
+        )
+    return PendingApprovalResponse(
+        id=record["approval_id"],
+        run_id=run_id,
+        tool_call_id=str(tool_call.get("id", "unknown")),
+        tool_name=str(tool_call.get("name", "unknown")),
+        preview_hash=str(record["approval_hash"]),
+        mutation_preview=(
+            record["mutation_preview"]
+            if isinstance(record["mutation_preview"], dict)
+            else None
+        ),
+        expires_at=record["expires_at"],
+    )

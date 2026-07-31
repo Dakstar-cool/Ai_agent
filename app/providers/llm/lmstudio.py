@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 from pydantic import ValidationError
@@ -15,11 +16,25 @@ logger = logging.getLogger(__name__)
 
 
 class LMStudioProvider(ILLMProvider):
-    def __init__(self, base_url: str, model: str, timeout: float = 60.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        timeout: float = 60.0,
+        api_key: str | None = None,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
-        self._client = httpx.AsyncClient(timeout=self.timeout, trust_env=False)
+        self.requires_network_permission = (
+            urlsplit(self.base_url).hostname or ""
+        ).casefold() not in {"127.0.0.1", "localhost", "::1"}
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else None
+        self._client = httpx.AsyncClient(
+            timeout=self.timeout,
+            trust_env=False,
+            headers=headers,
+        )
 
     async def aclose(self) -> None:
         await self._client.aclose()
@@ -72,7 +87,6 @@ class LMStudioProvider(ILLMProvider):
             ) from exc
         except httpx.HTTPStatusError as exc:
             status = exc.response.status_code if exc.response is not None else None
-            body_preview = exc.response.text[:500] if exc.response is not None else ""
             logger.warning(
                 "LM Studio bad status: status=%s base_url=%s model=%s",
                 status,
@@ -85,7 +99,6 @@ class LMStudioProvider(ILLMProvider):
                     "base_url": self.base_url,
                     "model": str(payload["model"]),
                     "status_code": status,
-                    "body_preview": body_preview,
                 },
             ) from exc
         except httpx.RequestError as exc:
@@ -110,7 +123,7 @@ class LMStudioProvider(ILLMProvider):
                 "LM Studio returned non-JSON response: base_url=%s", self.base_url
             )
             raise LLMProviderBadResponseError(
-                details={"base_url": self.base_url, "body_preview": response.text[:500]}
+                details={"base_url": self.base_url, "reason": "non_json_response"}
             ) from exc
 
         if not isinstance(data, dict):

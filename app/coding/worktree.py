@@ -231,7 +231,7 @@ class TaskWorktreeService:
                 paths=paths,
             )
         return {
-            "schema_version": "0.2.0",
+            "schema_version": "0.3.0",
             "task_id": task_id,
             "diff_report": diff_report,
             "verification_report": verification_report,

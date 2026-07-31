@@ -1,8 +1,26 @@
-from app.contracts import PROTOCOL_VERSION, is_protocol_compatible
+import json
+from pathlib import Path
+
+from app.contracts import (
+    CONTRACTS_SCHEMA_SHA256,
+    PROTOCOL_VERSION,
+    is_protocol_compatible,
+)
 
 
-def test_worker_pins_protocol_0_1_0() -> None:
-    assert PROTOCOL_VERSION == "0.2.0"
+def test_worker_pins_protocol_0_3_0() -> None:
+    assert PROTOCOL_VERSION == "0.3.0"
+
+
+def test_contract_lock_matches_runtime_pin() -> None:
+    lock = json.loads(
+        (Path(__file__).resolve().parents[1] / "contracts.lock").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert lock["protocol_version"] == PROTOCOL_VERSION
+    assert lock["schema_sha256"] == CONTRACTS_SCHEMA_SHA256
 
 
 def test_compatible_minor_and_patch_share_major() -> None:

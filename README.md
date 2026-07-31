@@ -19,7 +19,7 @@ Worker `0.5.0` содержит безопасный tool-calling foundation, pe
 - Tool registry и безопасные tools для файлов, поиска по проекту, read-only git и ограниченного запуска команд.
 - Типизированные `LLMResponse`, `ToolCall`, `ToolResult`, JSON Schema tools и ограниченный LLM-driven execution loop.
 - Code verifier для coding-route при `metadata.verify_code=true`.
-- Явный pin на `ai-agent-contracts` protocol `0.2.0` с checksum schema.
+- Явный pin на `ai-agent-contracts` protocol `0.3.0` с checksum schema.
 - Workspace registry: новый Run принимает `workspace_id`, а не клиентский raw path.
 - State machine `queued/running/waiting_approval/verifying/completed/failed/cancelled`.
 - Append-only `RunEvent`, восстановление timeline после restart и один execution lock
@@ -159,11 +159,11 @@ workspace и ждёт terminal/waiting-approval state. Переданный `pro
 
 ```json
 {
-  "schema_version": "0.2.0",
+  "schema_version": "0.3.0",
   "workspace_id": "00000000-0000-0000-0000-000000000000",
   "message": "Исправь src/app.py и запусти тесты",
   "policy": {
-    "schema_version": "0.2.0",
+    "schema_version": "0.3.0",
     "mode": "supervised",
     "ttl_seconds": 300,
     "allowed_tools": ["write_file", "run_command"],

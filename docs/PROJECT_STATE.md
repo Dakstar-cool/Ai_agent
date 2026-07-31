@@ -4,7 +4,7 @@
 
 ## Текущий milestone
 
-`M4 — policy engine и autonomy modes` реализован; следующий milestone — `M5`.
+`M5 — cross-platform desktop MVP` в работе; первый sidecar/UI slice реализован.
 Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio smoke.
 
 ## Завершено
@@ -48,8 +48,14 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
   post-action SHA-256;
 - policy unit/E2E доказывают scoped autonomous write без approval и невозможность
   обхода hard deny; полный M4 gate: 109 tests, compileall и ruff — зелёные.
-- worker закреплён на additive contracts protocol `0.2.0` с RunPolicy и
-  `policy_audit`.
+- worker `0.6.0` закреплён на contracts protocol `0.3.0`;
+- добавлен PyInstaller sidecar с 256-битным bootstrap token через stdin, случайным
+  loopback-портом и обязательной bearer-аутентификацией всех local API requests;
+- provider credentials передаются только в память, remote provider требует HTTPS,
+  explicit opt-in и `RunPolicy.network_allowed=true`;
+- добавлен безопасный pending-approval endpoint для desktop diff preview;
+- Windows sidecar собран и smoke-проверен: protected health отвечает только с bearer;
+- полный M5 worker gate: 124 tests, compileall и ruff — зелёные.
 
 ## Незакрытый release gate M0
 
@@ -62,17 +68,18 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
 
 ## Следующий milestone
 
-`M5 — cross-platform desktop MVP`:
+Продолжение `M5 — cross-platform desktop MVP`:
 
-1. Tauri 2 + React/TypeScript shell и sidecar lifecycle;
-2. bootstrap bearer token через stdin и random loopback port;
-3. workspace selector, run timeline/SSE, approvals и diff preview;
-4. secure provider settings, recovery, diagnostics и offline-ready local UX;
-5. Windows/Linux/macOS CI, packaging and signing foundation.
+1. проверить Rust/Tauri crate нативно на Windows/Linux/macOS CI;
+2. подключить настоящие sidecar artifacts для трёх target triples;
+3. добавить Tauri integration tests crash/restart и bootstrap auth;
+4. подготовить unsigned packaging smoke, затем signing/notarization secrets;
+5. закрыть protocol minor-version negotiation и high-level task/worktree UX.
 
 ## Известные gaps
 
-- desktop, hub, outbox и handoff ещё не реализованы;
+- desktop M5 реализован как функциональный slice, но native packaging/signing ещё не
+  подтверждены на всех трёх ОС; hub, outbox и handoff ещё не реализованы;
 - organization/project policy boundaries поддержаны evaluator-ом, но их удалённое
   администрирование появится вместе с hub и OIDC/RBAC;
 - Run API пока ожидает, что desktop сначала явно создаст task worktree, а затем запустит

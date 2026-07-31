@@ -5,11 +5,11 @@ import time
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 import app.api.routes.runs as run_routes
-from app.api.routes.chat import close_orchestrator
+from app.api.routes.chat import close_orchestrator, require_api_key
 from app.api.routes.chat import router as chat_router
 from app.api.routes.coding import router as coding_router
 from app.config.settings import get_settings
@@ -160,7 +160,7 @@ def create_app() -> FastAPI:
             },
         )
 
-    @app.get("/health")
+    @app.get("/health", dependencies=[Depends(require_api_key)])
     async def health() -> dict[str, str]:
         return {
             "status": "ok",
