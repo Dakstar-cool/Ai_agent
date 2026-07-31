@@ -107,16 +107,16 @@ class SQLiteFTSMemoryService(IMemoryService):
     def _save_sync(self, item: MemoryRecord) -> None:
         summary = self._summary_for(item)
         provenance = {
-            str(key)[:100]: str(value)[:500]
-            for key, value in item.provenance.items()
+            str(key)[:100]: str(value)[:500] for key, value in item.provenance.items()
         }
         if contains_sensitive_data(summary) or contains_sensitive_data(provenance):
             raise ValueError("Persistent memory contains protected data")
 
         created_at = item.created_at or datetime.now(UTC).isoformat()
-        expires_at = item.expires_at or (
-            datetime.now(UTC) + timedelta(days=self.ttl_days)
-        ).isoformat()
+        expires_at = (
+            item.expires_at
+            or (datetime.now(UTC) + timedelta(days=self.ttl_days)).isoformat()
+        )
         project_id = item.project_id or self._project_id_for_path(item.project_path)
         with self._connect() as connection:
             self._purge_expired(connection)
@@ -174,7 +174,7 @@ class SQLiteFTSMemoryService(IMemoryService):
                     SELECT r.*, bm25(memory_fts) AS relevance
                     FROM memory_fts
                     JOIN memory_records AS r ON r.rowid = memory_fts.rowid
-                    WHERE memory_fts MATCH ? AND {' AND '.join(conditions)}
+                    WHERE memory_fts MATCH ? AND {" AND ".join(conditions)}
                     ORDER BY relevance, r.created_at DESC
                     LIMIT ?
                 """
@@ -185,7 +185,7 @@ class SQLiteFTSMemoryService(IMemoryService):
                 sql = f"""
                     SELECT r.*, 0.0 AS relevance
                     FROM memory_records AS r
-                    WHERE {' AND '.join(conditions)}
+                    WHERE {" AND ".join(conditions)}
                     ORDER BY r.created_at DESC
                     LIMIT ?
                 """
@@ -207,7 +207,7 @@ class SQLiteFTSMemoryService(IMemoryService):
             rows = connection.execute(
                 f"""
                 SELECT * FROM memory_records
-                WHERE {' AND '.join(conditions)}
+                WHERE {" AND ".join(conditions)}
                 ORDER BY created_at, id
                 LIMIT 10000
                 """,
@@ -258,9 +258,13 @@ class SQLiteFTSMemoryService(IMemoryService):
 
     @staticmethod
     def _match_query(text: str) -> str:
-        tokens = [token.casefold() for token in _TOKEN_RE.findall(text) if len(token) >= 2]
+        tokens = [
+            token.casefold() for token in _TOKEN_RE.findall(text) if len(token) >= 2
+        ]
         unique_tokens = list(dict.fromkeys(tokens))[:20]
-        return " OR ".join(f'"{token.replace(chr(34), chr(34) * 2)}"' for token in unique_tokens)
+        return " OR ".join(
+            f'"{token.replace(chr(34), chr(34) * 2)}"' for token in unique_tokens
+        )
 
     @staticmethod
     def _summary_for(item: MemoryRecord) -> str:
@@ -274,7 +278,12 @@ class SQLiteFTSMemoryService(IMemoryService):
     def _project_id_for_path(project_path: str | None) -> str | None:
         if not project_path:
             return None
-        normalized = str(Path(project_path).expanduser()).replace("\\", "/").rstrip("/").casefold()
+        normalized = (
+            str(Path(project_path).expanduser())
+            .replace("\\", "/")
+            .rstrip("/")
+            .casefold()
+        )
         digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:24]
         return f"local-{digest}"
 

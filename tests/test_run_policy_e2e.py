@@ -41,7 +41,9 @@ class AutonomousWriteProvider:
 
 
 @pytest.mark.asyncio
-async def test_autonomous_run_persists_mutation_audit_without_approval(tmp_path) -> None:
+async def test_autonomous_run_persists_mutation_audit_without_approval(
+    tmp_path,
+) -> None:
     workspace = tmp_path / "workspace"
     workspace.joinpath("src").mkdir(parents=True)
     workspace.joinpath("src", "app.py").write_text("base\n", encoding="utf-8")

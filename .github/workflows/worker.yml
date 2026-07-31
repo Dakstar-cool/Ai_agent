@@ -24,6 +24,7 @@ jobs:
       - run: uv sync --frozen
       - run: uv run pytest -q
       - run: uv run python -m compileall app tests scripts
+      - run: uv run ruff format --check .
       - run: uv run ruff check .
       - run: uv build
       - name: Generate CycloneDX SBOM

@@ -263,17 +263,18 @@ def test_sqlite_approval_survives_store_restart(tmp_path) -> None:
         project_path=None,
     )
 
-    reopened = SQLitePendingApprovalStore(
-        state_store=SQLiteStateStore(state.path)
-    )
+    reopened = SQLitePendingApprovalStore(state_store=SQLiteStateStore(state.path))
     recovered = reopened.get(pending.approval_id)
 
     assert recovered.tool_call == pending.tool_call
     assert recovered.approval_hash == pending.approval_hash
-    assert reopened.consume(
-        approval_id=pending.approval_id,
-        session_id="persistent-session",
-    ).approval_id == pending.approval_id
+    assert (
+        reopened.consume(
+            approval_id=pending.approval_id,
+            session_id="persistent-session",
+        ).approval_id
+        == pending.approval_id
+    )
 
     with pytest.raises(AppError) as replay_error:
         reopened.consume(

@@ -58,9 +58,7 @@ async def test_sqlite_memory_export_omits_raw_trace_and_delete_is_scoped(
             session_id="session-a",
         )
     )
-    await service.save(
-        MemoryRecord(summary="Keep this", project_id="project-b")
-    )
+    await service.save(MemoryRecord(summary="Keep this", project_id="project-b"))
 
     exported = await service.export(MemoryScopeQuery(project_id="project-a"))
     deleted = await service.delete(MemoryScopeQuery(project_id="project-a"))
@@ -74,8 +72,7 @@ async def test_sqlite_memory_export_omits_raw_trace_and_delete_is_scoped(
 
     with sqlite3.connect(storage_path) as connection:
         columns = {
-            row[1]
-            for row in connection.execute("PRAGMA table_info(memory_records)")
+            row[1] for row in connection.execute("PRAGMA table_info(memory_records)")
         }
     assert "user_message" not in columns
     assert "assistant_reply" not in columns

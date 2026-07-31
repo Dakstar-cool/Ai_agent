@@ -338,7 +338,9 @@ class RunService:
                 approval_steps.append(step)
             if step.name in {"verification", "code_verifier"}:
                 verification_failed = verification_failed or step.status == "failed"
-                has_code_verification = has_code_verification or step.name == "code_verifier"
+                has_code_verification = (
+                    has_code_verification or step.name == "code_verifier"
+                )
             if index >= persisted_step_count:
                 self._append_step_event(run_id=run_id, step=step)
 

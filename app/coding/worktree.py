@@ -64,7 +64,9 @@ class TaskWorktreeService:
             )
         source_root = Path(source.root_path).resolve(strict=True)
         repository_root = Path(
-            (await self._git(["rev-parse", "--show-toplevel"], cwd=source_root))["stdout"]
+            (await self._git(["rev-parse", "--show-toplevel"], cwd=source_root))[
+                "stdout"
+            ]
         ).resolve(strict=True)
         if repository_root != source_root:
             raise AppError(
@@ -186,8 +188,10 @@ class TaskWorktreeService:
     ) -> dict[str, Any]:
         record = self._require(task_id)
         root = Path(record.path).resolve(strict=True)
-        if not message.strip() or len(message) > 200 or any(
-            character in message for character in "\r\n\x00"
+        if (
+            not message.strip()
+            or len(message) > 200
+            or any(character in message for character in "\r\n\x00")
         ):
             raise AppError(
                 message="Commit message must be one non-empty line up to 200 characters",
@@ -223,9 +227,9 @@ class TaskWorktreeService:
             ["commit", "-m", message.strip(), "--", *relative_paths],
             cwd=root,
         )
-        commit_sha = (
-            await self._git(["rev-parse", "HEAD"], cwd=root)
-        )["stdout"].strip()
+        commit_sha = (await self._git(["rev-parse", "HEAD"], cwd=root))[
+            "stdout"
+        ].strip()
         return {
             "task_id": task_id,
             "branch": record.branch,
@@ -328,11 +332,7 @@ class TaskWorktreeService:
         for raw_line in status.splitlines():
             if len(raw_line) < 3:
                 continue
-            if (
-                raw_line[0] != "?"
-                and raw_line[1] == " "
-                and raw_line[2] != " "
-            ):
+            if raw_line[0] != "?" and raw_line[1] == " " and raw_line[2] != " ":
                 state = f" {raw_line[0]}"
                 path = raw_line[2:].strip()
             else:

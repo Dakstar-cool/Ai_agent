@@ -9,9 +9,7 @@ class ILLMProvider(ABC):
     model = "unknown"
 
     @abstractmethod
-    async def chat(
-        self, messages: list[dict[str, Any]], **kwargs: Any
-    ) -> LLMResponse:
+    async def chat(self, messages: list[dict[str, Any]], **kwargs: Any) -> LLMResponse:
         raise NotImplementedError
 
     async def discover_capabilities(self) -> ProviderCapabilities:

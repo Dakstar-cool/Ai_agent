@@ -40,11 +40,13 @@ def test_health_returns_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
-    assert response.json()["version"] == "0.8.3"
+    assert response.json()["version"] == "0.8.4"
     assert response.json()["protocol_version"] == "0.3.0"
 
 
-def test_chat_works_without_api_key_when_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_chat_works_without_api_key_when_not_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("API_KEY", "")
     client = _client(monkeypatch)
 
@@ -171,9 +173,7 @@ def test_memory_export_and_delete_require_explicit_scope(
     monkeypatch.setenv("MEMORY_SQLITE_PATH", str(tmp_path / "memory.sqlite3"))
     client = _client(monkeypatch)
 
-    invalid = client.post(
-        "/api/v1/memory/export", json={"schema_version": "0.3.0"}
-    )
+    invalid = client.post("/api/v1/memory/export", json={"schema_version": "0.3.0"})
     exported = client.post(
         "/api/v1/memory/export",
         json={"schema_version": "0.3.0", "project_id": "project-a"},

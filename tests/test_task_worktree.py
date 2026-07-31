@@ -167,7 +167,9 @@ async def test_task_worktree_creation_is_idempotent_for_same_task(tmp_path) -> N
 
 
 @pytest.mark.asyncio
-async def test_existing_task_worktree_rejects_a_different_handoff_base(tmp_path) -> None:
+async def test_existing_task_worktree_rejects_a_different_handoff_base(
+    tmp_path,
+) -> None:
     repository, base_sha = _repository(tmp_path)
     service, workspace_id = _service(tmp_path, repository)
     await service.create(
@@ -203,7 +205,9 @@ async def test_handoff_base_must_exist_before_worktree_mutation(tmp_path) -> Non
 
 
 @pytest.mark.asyncio
-async def test_create_worktree_tool_requires_approval_before_git_mutation(tmp_path) -> None:
+async def test_create_worktree_tool_requires_approval_before_git_mutation(
+    tmp_path,
+) -> None:
     repository, base_sha = _repository(tmp_path)
     service, workspace_id = _service(tmp_path, repository)
     registry = ToolRegistry()

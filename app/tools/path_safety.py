@@ -189,7 +189,9 @@ def iter_safe_files(
         dirnames[:] = [
             dirname
             for dirname in dirnames
-            if not policy.is_ignored_path(current_path / dirname, ignored_dirs=ignored_dirs)
+            if not policy.is_ignored_path(
+                current_path / dirname, ignored_dirs=ignored_dirs
+            )
         ]
         for filename in filenames:
             path = current_path / filename

@@ -15,7 +15,10 @@ class GitDiffTool(ITool):
     input_schema: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
-            "path": {"type": "string", "description": "Optional workspace-relative path"}
+            "path": {
+                "type": "string",
+                "description": "Optional workspace-relative path",
+            }
         },
         "additionalProperties": False,
     }

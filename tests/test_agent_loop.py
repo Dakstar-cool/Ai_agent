@@ -214,8 +214,7 @@ async def test_file_prompt_injection_remains_untrusted_tool_data(tmp_path) -> No
     carrying_messages = [
         message
         for message in follow_up_messages
-        if isinstance(message.get("content"), str)
-        and injection in message["content"]
+        if isinstance(message.get("content"), str) and injection in message["content"]
     ]
     assert len(carrying_messages) == 1
     assert carrying_messages[0]["role"] == "tool"
@@ -286,16 +285,12 @@ async def test_duplicate_tool_call_is_not_executed_twice() -> None:
         [
             LLMResponse(
                 tool_calls=[
-                    ToolCall(
-                        id="count-1", name="counting_tool", arguments={"value": 1}
-                    )
+                    ToolCall(id="count-1", name="counting_tool", arguments={"value": 1})
                 ]
             ),
             LLMResponse(
                 tool_calls=[
-                    ToolCall(
-                        id="count-2", name="counting_tool", arguments={"value": 1}
-                    )
+                    ToolCall(id="count-2", name="counting_tool", arguments={"value": 1})
                 ]
             ),
             LLMResponse(content="Duplicate rejected"),
@@ -375,9 +370,9 @@ async def test_agent_loop_rejects_batch_over_tool_call_limit() -> None:
 
 @pytest.mark.asyncio
 async def test_agent_loop_enforces_overall_deadline() -> None:
-    response = await _orchestrator(
-        SlowProvider(), ToolRegistry(), timeout=0.01
-    ).handle(ChatRequest(message="wait forever"))
+    response = await _orchestrator(SlowProvider(), ToolRegistry(), timeout=0.01).handle(
+        ChatRequest(message="wait forever")
+    )
 
     assert response.reply == "Agent execution stopped: execution deadline reached."
     loop_step = next(step for step in response.steps if step.name == "agent_loop")

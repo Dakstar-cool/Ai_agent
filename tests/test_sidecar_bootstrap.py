@@ -86,7 +86,9 @@ def test_bootstrap_mode_requires_bearer_even_when_api_key_header_is_used() -> No
     try:
         with TestClient(create_app()) as client:
             assert client.get("/health").status_code == 401
-            assert client.get("/health", headers={"X-API-Key": TOKEN}).status_code == 401
+            assert (
+                client.get("/health", headers={"X-API-Key": TOKEN}).status_code == 401
+            )
             response = client.get(
                 "/health", headers={"Authorization": f"Bearer {TOKEN}"}
             )

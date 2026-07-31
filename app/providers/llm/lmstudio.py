@@ -41,9 +41,7 @@ class OpenAICompatibleProvider(ILLMProvider):
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def chat(
-        self, messages: list[dict[str, Any]], **kwargs: Any
-    ) -> LLMResponse:
+    async def chat(self, messages: list[dict[str, Any]], **kwargs: Any) -> LLMResponse:
         payload: dict[str, Any] = {
             "model": kwargs.get("model", self.model),
             "messages": messages,

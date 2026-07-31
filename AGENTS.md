@@ -1,7 +1,7 @@
 # AI Agent Worker instructions
 
 Канонический план: `ai-agent-contracts` → `docs/PROJECT_PLAN.md`, plan `0.1.0`.
-Закреплённый protocol: `0.1.0` (`>=0.1.0,<0.2.0`), см. `contracts.lock`.
+Закреплённый protocol: `0.3.0` (`>=0.3.0,<1.0.0`), см. `contracts.lock`.
 
 Перед изменениями прочитайте contracts `PROJECT_STATE.md`, текущий milestone и
 относящиеся к нему ADR. Локальные `docs/PROJECT_*.md` — временный snapshot M0.

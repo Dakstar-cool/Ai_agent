@@ -310,7 +310,9 @@ async def test_failed_code_verifier_fails_run(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_unexpected_error_is_persisted_without_secret_or_traceback(tmp_path) -> None:
+async def test_unexpected_error_is_persisted_without_secret_or_traceback(
+    tmp_path,
+) -> None:
     state, workspace_id = _state(tmp_path)
     orchestrator = ExplodingOrchestrator(state)
     service = RunService(

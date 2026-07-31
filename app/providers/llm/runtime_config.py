@@ -19,7 +19,9 @@ class ProviderRuntimeConfig:
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise ValueError("Provider URL must be HTTP or HTTPS")
         if parsed.username or parsed.password or parsed.query or parsed.fragment:
-            raise ValueError("Provider URL contains unsupported credentials or metadata")
+            raise ValueError(
+                "Provider URL contains unsupported credentials or metadata"
+            )
         is_loopback = parsed.hostname.casefold() in LOOPBACK_HOSTS
         if not is_loopback and (not self.remote_opt_in or parsed.scheme != "https"):
             raise ValueError("Remote provider requires explicit opt-in and HTTPS")

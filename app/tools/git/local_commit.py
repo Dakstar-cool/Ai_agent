@@ -9,7 +9,9 @@ from app.tools.base import ITool
 
 class LocalCommitTool(ITool):
     name = "local_commit"
-    description = "Create a local commit for explicit paths in the current task worktree"
+    description = (
+        "Create a local commit for explicit paths in the current task worktree"
+    )
     input_schema: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
@@ -55,7 +57,9 @@ class LocalCommitTool(ITool):
                 status_code=409,
             )
         paths = kwargs.get("paths")
-        if not isinstance(paths, list) or not all(isinstance(item, str) for item in paths):
+        if not isinstance(paths, list) or not all(
+            isinstance(item, str) for item in paths
+        ):
             raise AppError(
                 message="Commit paths must be a list of strings",
                 code="invalid_commit_paths",

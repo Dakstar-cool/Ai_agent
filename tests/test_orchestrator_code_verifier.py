@@ -14,7 +14,9 @@ class FakeLLMProvider:
 
 
 class FakeCodeVerifier:
-    def __init__(self, result: dict | None = None, error: Exception | None = None) -> None:
+    def __init__(
+        self, result: dict | None = None, error: Exception | None = None
+    ) -> None:
         self.calls = 0
         self.result = result or {"ok": True, "checks": []}
         self.error = error
@@ -70,7 +72,9 @@ async def test_code_verifier_called_for_coding_route_with_flag() -> None:
 
 @pytest.mark.asyncio
 async def test_failed_code_verifier_result_is_failed_step() -> None:
-    verifier = FakeCodeVerifier({"ok": False, "checks": [{"name": "pytest", "ok": False}]})
+    verifier = FakeCodeVerifier(
+        {"ok": False, "checks": [{"name": "pytest", "ok": False}]}
+    )
     response = await _orchestrator(verifier).handle(
         ChatRequest(message="fix code", metadata={"verify_code": True})
     )

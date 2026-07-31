@@ -116,9 +116,7 @@ class Settings(BaseSettings):
 
         xdg_state_home = os.environ.get("XDG_STATE_HOME")
         base = (
-            Path(xdg_state_home)
-            if xdg_state_home
-            else Path.home() / ".local" / "state"
+            Path(xdg_state_home) if xdg_state_home else Path.home() / ".local" / "state"
         )
         return base / "ai-agent" / "worker.sqlite3"
 

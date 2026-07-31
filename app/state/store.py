@@ -384,7 +384,9 @@ class SQLiteStateStore:
     def get_run(self, run_id: str) -> RunRecord | None:
         self.initialize()
         with self._connect() as connection:
-            row = connection.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
+            row = connection.execute(
+                "SELECT * FROM runs WHERE id=?", (run_id,)
+            ).fetchone()
         return self._run_from_row(row) if row is not None else None
 
     def require_run(self, run_id: str) -> RunRecord:

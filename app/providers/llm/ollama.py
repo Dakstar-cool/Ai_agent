@@ -43,7 +43,9 @@ class OllamaProvider(OpenAICompatibleProvider):
                 },
             ) from exc
 
-        capabilities = payload.get("capabilities", []) if isinstance(payload, dict) else []
+        capabilities = (
+            payload.get("capabilities", []) if isinstance(payload, dict) else []
+        )
         model_info = payload.get("model_info", {}) if isinstance(payload, dict) else {}
         context_limit = self._ollama_context_limit(model_info)
         return ProviderCapabilities(

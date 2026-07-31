@@ -122,7 +122,9 @@ def smoke_sidecar(executable: Path) -> dict[str, object]:
             try:
                 ready = json.loads(ready_line)
             except json.JSONDecodeError as exc:
-                raise RuntimeError("Sidecar emitted an invalid readiness event") from exc
+                raise RuntimeError(
+                    "Sidecar emitted an invalid readiness event"
+                ) from exc
             if ready.get("event") != "ready" or ready.get("host") != "127.0.0.1":
                 raise RuntimeError("Sidecar emitted an unsafe readiness event")
             port = ready.get("port")

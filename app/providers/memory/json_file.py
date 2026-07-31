@@ -229,8 +229,7 @@ class JsonFileMemoryService(IMemoryService):
                         user_id=record.user_id,
                         project_id=record.project_id,
                         provenance=record.provenance,
-                        created_at=record.created_at
-                        or datetime.now(UTC).isoformat(),
+                        created_at=record.created_at or datetime.now(UTC).isoformat(),
                         expires_at=record.expires_at,
                     )
                 )
@@ -270,7 +269,5 @@ class JsonFileMemoryService(IMemoryService):
         try:
             return MemoryRecord.model_validate_json(line)
         except (TypeError, ValueError) as exc:
-            logger.debug(
-                "memory_record_skipped error_type=%s", exc.__class__.__name__
-            )
+            logger.debug("memory_record_skipped error_type=%s", exc.__class__.__name__)
             return None

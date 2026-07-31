@@ -176,7 +176,10 @@ class PolicyEngine:
     ) -> str | None:
         if boundary is None:
             return None
-        if boundary.allowed_tools is not None and tool.name not in boundary.allowed_tools:
+        if (
+            boundary.allowed_tools is not None
+            and tool.name not in boundary.allowed_tools
+        ):
             return "tool_blocked_by_policy"
         if (
             boundary.path_globs is not None
@@ -243,10 +246,7 @@ class PolicyEngine:
             any(
                 pattern in {"*", "**", "**/*"}
                 or fnmatchcase(path, pattern)
-                or (
-                    pattern.endswith("/**")
-                    and path == pattern.removesuffix("/**")
-                )
+                or (pattern.endswith("/**") and path == pattern.removesuffix("/**"))
                 for pattern in patterns
             )
             for path in paths

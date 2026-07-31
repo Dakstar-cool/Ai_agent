@@ -30,9 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class _ObservedExecutionLog(list[ExecutionStep]):
-    def __init__(
-        self, observer: Callable[[ExecutionStep], None] | None = None
-    ) -> None:
+    def __init__(self, observer: Callable[[ExecutionStep], None] | None = None) -> None:
         super().__init__()
         self._observer = observer
 
@@ -680,7 +678,9 @@ class Orchestrator:
                             loop_step=loop_step,
                             tool_call_count=tool_call_count,
                         )
-                        return "Agent execution stopped: maximum tool call limit reached."
+                        return (
+                            "Agent execution stopped: maximum tool call limit reached."
+                        )
 
                     conversation.append(response.to_assistant_message())
                     for tool_call in response.tool_calls:
