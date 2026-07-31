@@ -16,6 +16,7 @@
 - Tool registry и безопасные tools для файлов, поиска по проекту, read-only git и ограниченного запуска команд.
 - Типизированные `LLMResponse`, `ToolCall`, `ToolResult`, JSON Schema tools и ограниченный LLM-driven execution loop.
 - Code verifier для coding-route при `metadata.verify_code=true`.
+- Явный pin на `ai-agent-contracts` protocol `0.1.0` с checksum schema.
 - Тесты для API, роутинга, инструментов, памяти, ошибок, настроек и верификации.
 
 ## Структура проекта
@@ -62,6 +63,7 @@ docs/
   PROJECT_PLAN.md                 # генеральная дорожная карта до создания contracts repo
   PROJECT_STATE.md                # текущее состояние, следующий шаг и известные gaps
 tests/                            # pytest-набор по текущим модулям
+contracts.lock                    # protocol version/range и checksum source schema
 ```
 
 `data/`, `logs/`, `.pytest_cache/`, `.ruff_cache/`, `.venv/`, `venv/` и `ai_agentv1.egg-info/` не являются основной архитектурой приложения. Это runtime/build/test артефакты или локальная среда.

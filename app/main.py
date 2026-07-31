@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from app.api.routes.chat import close_orchestrator
 from app.api.routes.chat import router as chat_router
 from app.config.settings import get_settings
+from app.contracts import PROTOCOL_VERSION
 from app.errors import AppError
 from app.utils.logging import configure_logging
 from app.utils.request_context import get_request_id, reset_request_id, set_request_id
@@ -155,7 +156,13 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "env": settings.app_env}
+        return {
+            "status": "ok",
+            "env": settings.app_env,
+            "component": "ai-agent-worker",
+            "version": "0.2.0",
+            "protocol_version": PROTOCOL_VERSION,
+        }
 
     return app
 
