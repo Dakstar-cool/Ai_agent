@@ -2,7 +2,7 @@
 
 Локальный каркас AI-агента на FastAPI с отдельным orchestration layer, LM Studio как текущим LLM backend, опциональной локальной памятью и безопасным набором инструментов для работы с проектом.
 
-Worker `0.8.1` содержит безопасный tool-calling foundation, persistent Run API,
+Worker `0.8.2` содержит безопасный tool-calling foundation, persistent Run API,
 изолированный coding workflow и policy-controlled autonomy modes.
 Один LLM-шаг Planner выполняется через ограниченный loop, автоматически запускающий
 только read-only tools. Runs, events, sessions и approvals сохраняются в SQLite/WAL.
@@ -258,7 +258,9 @@ Invoke-RestMethod `
 | `RATE_LIMIT_REQUESTS_PER_MINUTE` | `120` | Лимит запросов в минуту на client host. |
 | `LOG_LEVEL` | `INFO` | Уровень логирования. |
 | `LOG_TO_FILE` | `true` | Писать логи в файл. |
-| `TELEMETRY_ENABLED` | `false` | Резерв opt-in: worker не отправляет telemetry автоматически. |
+| `TELEMETRY_ENABLED` | `false` | Явно включает bounded OTLP/HTTP traces и metrics; по умолчанию network export отсутствует. |
+| `TELEMETRY_EXPORTER_OTLP_ENDPOINT` | empty | Collector origin; production требует HTTPS. |
+| `TELEMETRY_SERVICE_NAME` | `ai-agent-worker` | Безопасное service name в telemetry resource. |
 | `LMSTUDIO_BASE_URL` | `http://127.0.0.1:1234/v1` | OpenAI-compatible endpoint LM Studio. |
 | `LMSTUDIO_MODEL` | `google/gemma-4-e4b` | Модель для запросов к LM Studio. |
 | `ENABLE_MEMORY` | `false` | Включает сохранение и recall памяти. |

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, nullcontext
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Request
@@ -19,6 +19,7 @@ from app.config.settings import get_settings
 from app.contracts import PROTOCOL_VERSION
 from app.errors import AppError
 from app.utils.logging import configure_logging
+from app.utils.observability import configure_opentelemetry
 from app.utils.request_context import get_request_id, reset_request_id, set_request_id
 
 logger = logging.getLogger(__name__)
@@ -56,13 +57,32 @@ def create_app() -> FastAPI:
         log_to_file=settings.log_to_file,
         json_logs=settings.log_json,
     )
+    telemetry = (
+        configure_opentelemetry(
+            origin=str(settings.telemetry_exporter_otlp_endpoint),
+            service_name=settings.telemetry_service_name,
+            service_version=__version__,
+        )
+        if settings.telemetry_enabled
+        else None
+    )
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         run_routes.get_run_service()
-        yield
-        await run_routes.close_run_service()
-        await close_orchestrator()
+        try:
+            yield
+        finally:
+            await run_routes.close_run_service()
+            await close_orchestrator()
+            if telemetry is not None:
+                try:
+                    telemetry.shutdown()
+                except Exception as exc:  # noqa: BLE001  # pragma: no cover
+                    logger.warning(
+                        "telemetry_shutdown_failed error_type=%s",
+                        exc.__class__.__name__,
+                    )
 
     app = FastAPI(title=settings.app_name, lifespan=lifespan)
     app.state.rate_limit_state = {}
@@ -77,50 +97,75 @@ def create_app() -> FastAPI:
         request_id = request.headers.get("X-Request-ID", str(uuid4()))
         token = set_request_id(request_id)
         started = time.perf_counter()
+        status_code = 500
+        span_context = (
+            telemetry.start_request_span(request.method)
+            if telemetry is not None
+            else nullcontext(None)
+        )
         logger.info(
             "request_started method=%s path=%s", request.method, request.url.path
         )
-        try:
-            client_id = request.client.host if request.client else "unknown"
-            allowed = _rate_limit_allows_request(
-                app.state.rate_limit_state,
-                client_id,
-                limit=settings.rate_limit_requests_per_minute,
-                now=time.monotonic(),
-            )
-            if not allowed:
-                logger.warning(
-                    "rate_limit_exceeded method=%s path=%s client=%s",
+        with span_context as span:
+            try:
+                client_id = request.client.host if request.client else "unknown"
+                allowed = _rate_limit_allows_request(
+                    app.state.rate_limit_state,
+                    client_id,
+                    limit=settings.rate_limit_requests_per_minute,
+                    now=time.monotonic(),
+                )
+                if not allowed:
+                    status_code = 429
+                    logger.warning(
+                        "rate_limit_exceeded method=%s path=%s client=%s",
+                        request.method,
+                        request.url.path,
+                        client_id,
+                    )
+                    response = JSONResponse(
+                        status_code=status_code,
+                        content={
+                            "error": {
+                                "code": "rate_limit_exceeded",
+                                "message": "Too many requests",
+                                "details": {
+                                    "limit_per_minute": (
+                                        settings.rate_limit_requests_per_minute
+                                    )
+                                },
+                                "request_id": request_id,
+                            },
+                        },
+                    )
+                    response.headers["X-Request-ID"] = request_id
+                    return response
+
+                response = await call_next(request)
+                status_code = response.status_code
+            finally:
+                duration_ms = round((time.perf_counter() - started) * 1000, 2)
+                if span is not None:
+                    span.set_attribute("http.response.status_code", status_code)
+                if telemetry is not None:
+                    try:
+                        telemetry.record_request(
+                            method=request.method,
+                            status_code=status_code,
+                            duration_ms=duration_ms,
+                        )
+                    except Exception as exc:  # noqa: BLE001  # pragma: no cover
+                        logger.warning(
+                            "telemetry_record_failed error_type=%s",
+                            exc.__class__.__name__,
+                        )
+                logger.info(
+                    "request_finished method=%s path=%s duration_ms=%s",
                     request.method,
                     request.url.path,
-                    client_id,
+                    duration_ms,
                 )
-                response = JSONResponse(
-                    status_code=429,
-                    content={
-                        "error": {
-                            "code": "rate_limit_exceeded",
-                            "message": "Too many requests",
-                            "details": {
-                                "limit_per_minute": settings.rate_limit_requests_per_minute
-                            },
-                            "request_id": request_id,
-                        }
-                    },
-                )
-                response.headers["X-Request-ID"] = request_id
-                return response
-
-            response = await call_next(request)
-        finally:
-            duration_ms = round((time.perf_counter() - started) * 1000, 2)
-            logger.info(
-                "request_finished method=%s path=%s duration_ms=%s",
-                request.method,
-                request.url.path,
-                duration_ms,
-            )
-            reset_request_id(token)
+                reset_request_id(token)
 
         response.headers["X-Request-ID"] = request_id
         return response

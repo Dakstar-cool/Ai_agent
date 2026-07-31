@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import os
 import sys
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlparse
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -22,6 +25,8 @@ class Settings(BaseSettings):
     log_to_file: bool = True
     log_json: bool = True
     telemetry_enabled: bool = False
+    telemetry_exporter_otlp_endpoint: str | None = None
+    telemetry_service_name: str = "ai-agent-worker"
 
     lmstudio_base_url: str = "http://127.0.0.1:1234/v1"
     lmstudio_model: str = "google/gemma-4-e4b"
@@ -55,6 +60,33 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=ROOT_DIR / ".env", env_file_encoding="utf-8", extra="ignore"
     )
+
+    @model_validator(mode="after")
+    def validate_telemetry(self) -> Settings:
+        if not self.telemetry_enabled:
+            return self
+        if not self.telemetry_exporter_otlp_endpoint:
+            raise ValueError("OTLP endpoint is required when telemetry is enabled")
+
+        parsed = urlparse(self.telemetry_exporter_otlp_endpoint)
+        local_development = self.app_env in {"dev", "test"} and parsed.hostname in {
+            "127.0.0.1",
+            "localhost",
+            "otel-collector",
+        }
+        if parsed.scheme != "https" and not (
+            parsed.scheme == "http" and local_development
+        ):
+            raise ValueError("OTLP endpoint must use HTTPS")
+        if (
+            parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
+            or parsed.path not in {"", "/"}
+        ):
+            raise ValueError("OTLP endpoint must contain only the collector origin")
+        return self
 
     def resolve_project_path(self, value: str) -> Path:
         path = Path(value)
