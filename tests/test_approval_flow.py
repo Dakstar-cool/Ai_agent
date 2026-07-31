@@ -7,13 +7,17 @@ from typing import Any
 import pytest
 
 from app.errors import AppError
-from app.orchestrator.approval.store import PendingApprovalStore
+from app.orchestrator.approval.store import (
+    PendingApprovalStore,
+    SQLitePendingApprovalStore,
+)
 from app.orchestrator.core import Orchestrator
 from app.providers.llm.models import LLMResponse, ToolCall
 from app.providers.memory.noop import NoOpMemoryService
 from app.schemas.chat import ChatRequest
 from app.tools.files.write_file import WriteFileTool
 from app.tools.registry import ToolRegistry
+from app.state.store import SQLiteStateStore
 
 
 class SequencedProvider:
@@ -200,3 +204,38 @@ async def test_invalid_approval_id_is_rejected_before_llm_call(tmp_path) -> None
 
     assert invalid_error.value.code == "invalid_approval_request"
     assert provider.calls == []
+
+
+def test_sqlite_approval_survives_store_restart(tmp_path) -> None:
+    state = SQLiteStateStore(tmp_path / "worker.sqlite3")
+    state.get_or_create_session("persistent-session")
+    first = SQLitePendingApprovalStore(state_store=state)
+    pending = first.create(
+        session_id="persistent-session",
+        tool_call=ToolCall(
+            id="persistent-call",
+            name="write_file",
+            arguments={"path": "result.txt", "content": "safe"},
+        ),
+        route="coding",
+        project_path=None,
+    )
+
+    reopened = SQLitePendingApprovalStore(
+        state_store=SQLiteStateStore(state.path)
+    )
+    recovered = reopened.get(pending.approval_id)
+
+    assert recovered.tool_call == pending.tool_call
+    assert recovered.approval_hash == pending.approval_hash
+    assert reopened.consume(
+        approval_id=pending.approval_id,
+        session_id="persistent-session",
+    ).approval_id == pending.approval_id
+
+    with pytest.raises(AppError) as replay_error:
+        reopened.consume(
+            approval_id=pending.approval_id,
+            session_id="persistent-session",
+        )
+    assert replay_error.value.code == "approval_not_found"

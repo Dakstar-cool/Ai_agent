@@ -15,6 +15,16 @@ def test_settings_resolve_project_path_returns_absolute() -> None:
     assert str(resolved).endswith(str(Path("data") / "memory" / "test.jsonl"))
 
 
+def test_default_state_database_is_outside_tool_workspace(monkeypatch) -> None:
+    monkeypatch.delenv("STATE_DB_PATH", raising=False)
+    settings = Settings(_env_file=None, state_db_path=None)
+
+    resolved = settings.resolve_state_db_path()
+
+    assert resolved.is_absolute()
+    assert resolved != settings.resolve_project_path("data/state/worker.sqlite3")
+
+
 def test_memory_factory_uses_resolved_absolute_path() -> None:
     settings = Settings(
         enable_memory=True,

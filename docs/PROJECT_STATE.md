@@ -4,8 +4,8 @@
 
 ## Текущий milestone
 
-`M0 — worker foundation 0.2.0` реализован в ветке
-`codex/worker-foundation-m0`; release tag ожидает ручной LM Studio smoke.
+`M2 — persistent worker и Run API` реализован; следующий milestone — `M3`.
+Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio smoke.
 
 ## Завершено
 
@@ -22,6 +22,12 @@
   approval flow;
 - старый параллельный orchestrator scaffold удалён.
 - `uv sync --frozen`, 65 pytest tests, compileall и ruff прошли 2026-07-31.
+- M1: contracts/desktop/hub repositories созданы и закреплены на protocol `0.1.0`;
+- M2: SQLite/WAL хранит workspaces, sessions, runs, events и approvals;
+- добавлены Run API, SSE, cancel, approval decision и startup recovery;
+- `/chat` переведён на синхронный adapter поверх persistent RunService;
+- failed CodeVerifier теперь меняет reply, Run state и memory policy;
+- полный M2 gate: 87 tests, compileall и ruff прошли 2026-07-31.
 
 ## Незакрытый release gate M0
 
@@ -34,23 +40,23 @@
 
 ## Следующий milestone
 
-`M1 — repositories и protocol foundation`:
+`M3 — безопасный coding workflow`:
 
-1. создать contracts repo и закрепить первую protocol version;
-2. добавить JSON schemas, OpenAPI, ADR, roadmap и compatibility matrix;
-3. создать минимальные worker/desktop/hub consumers одной contracts version;
-4. добавить generated Python/TypeScript types и compatibility CI.
+1. task branch/worktree от выбранного committed SHA;
+2. deterministic `MutationPreview` с old/new hashes и unified diff;
+3. approval по `preview_hash` и stale-state check перед atomic write;
+4. verification report, final diff stat и optional local commit;
+5. безопасные git tools без push/reset/clean/delete.
 
 ## Известные gaps
 
-- sessions и approvals пока process-local;
-- отсутствуют Run API, persistent event log, SSE и cancellation;
-- клиент ещё задаёт `project_path`; workspace registry отсутствует;
-- approval подтверждает сохранённый tool call, но ещё не использует
+- approval подтверждает сохранённый tool call и interim approval hash, но ещё не использует
   deterministic mutation preview, `preview_hash` и stale-state check;
-- failed CodeVerifier фиксируется в steps, но пока не меняет финальный run status;
 - coding выполняется без обязательного task worktree;
 - policy engine, desktop, hub, outbox и handoff ещё не реализованы;
+- SQLite operations пока синхронные и рассчитаны на local single-worker workload;
+- fine-grained LLM/tool events записываются после завершения orchestrator response,
+  поэтому token streaming появится вместе с desktop integration;
 - реальный LM Studio smoke зависит от локально запущенного сервера и модели.
 
 ## Правило продолжения

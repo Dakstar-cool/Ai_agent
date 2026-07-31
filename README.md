@@ -2,14 +2,16 @@
 
 Локальный каркас AI-агента на FastAPI с отдельным orchestration layer, LM Studio как текущим LLM backend, опциональной локальной памятью и безопасным набором инструментов для работы с проектом.
 
-Проект сейчас находится на стадии foundation: основной request pipeline уже собран, интерфейсы отделены от реализаций, а инструменты зарегистрированы через общий registry. Один LLM-шаг Planner выполняется через ограниченный tool-calling loop с безопасным автоматическим запуском только read-only tools.
+Worker `0.3.0` содержит безопасный tool-calling foundation и persistent Run API.
+Один LLM-шаг Planner выполняется через ограниченный loop, автоматически запускающий
+только read-only tools. Runs, events, sessions и approvals сохраняются в SQLite/WAL.
 
 ## Что уже есть
 
-- FastAPI gateway с `/health` и `POST /api/v1/chat`.
+- FastAPI gateway с `/health`, compatibility `/api/v1/chat`, Run API, SSE и cancel.
 - Опциональная авторизация через `X-API-Key` или `Authorization: Bearer ...`.
 - Request ID, базовый rate limit, структурированные ошибки и логирование в консоль/файл.
-- Orchestrator Core с router, context builder, planner, dispatcher, verifier, result synthesizer и session manager.
+- Orchestrator Core с router, context builder, planner, dispatcher, verifier, result synthesizer и persistent session manager.
 - LM Studio provider через OpenAI-compatible endpoint `/chat/completions`.
 - Абстракция памяти `IMemoryService`, `NoOpMemoryService` по умолчанию и JSONL backend при включении.
 - Фильтр чувствительных данных перед сохранением памяти.
@@ -17,6 +19,10 @@
 - Типизированные `LLMResponse`, `ToolCall`, `ToolResult`, JSON Schema tools и ограниченный LLM-driven execution loop.
 - Code verifier для coding-route при `metadata.verify_code=true`.
 - Явный pin на `ai-agent-contracts` protocol `0.1.0` с checksum schema.
+- Workspace registry: новый Run принимает `workspace_id`, а не клиентский raw path.
+- State machine `queued/running/waiting_approval/verifying/completed/failed/cancelled`.
+- Append-only `RunEvent`, восстановление timeline после restart и один execution lock
+  на workspace.
 - Тесты для API, роутинга, инструментов, памяти, ошибок, настроек и верификации.
 
 ## Структура проекта
@@ -41,11 +47,18 @@ app/
     verification/
       verifier.py                 # проверка ответа модели на пустой результат
       code_verifier.py            # compileall, pytest, ruff при coding verification
+  runs/
+    models.py                     # Run state machine и persistent records
+    service.py                    # background execution, recovery, cancel, approvals
+  state/
+    store.py                      # SQLite/WAL repositories и append-only events
+    runtime.py                    # default workspace и lifecycle state store
   providers/
     llm/                          # ILLMProvider + LMStudioProvider
     memory/                       # IMemoryService, noop, json_file, policy, factory
   schemas/
     chat.py                       # ChatRequest, ChatResponse, ExecutionStep
+    runs.py                       # Run/RunEvent/Workspace/Approval API contracts
   tools/
     base.py                       # ITool
     registry.py                   # ToolRegistry
@@ -71,9 +84,10 @@ contracts.lock                    # protocol version/range и checksum source sc
 ## Базовый поток
 
 ```text
-POST /api/v1/chat
+POST /api/v1/chat (compatibility adapter)
   -> require_api_key()
   -> request middleware: request_id, rate limit, logging
+  -> persistent RunService.create_run()
   -> Orchestrator.handle()
   -> SessionManager.get_or_create()
   -> TaskRouter.route()
@@ -91,9 +105,35 @@ POST /api/v1/chat
   -> optional CodeVerifier.verify(), если route=coding и metadata.verify_code=true
   -> memory save, если включена память и данные не чувствительные
   -> ResultSynthesizer.synthesize()
+  -> RunEvent timeline + terminal Run state
+  -> synchronous ChatResponse adapter
 ```
 
 Автоматически выполняются только tools с `read_only=true`. `write_file`, `run_command` и любые новые mutating tools по безопасному умолчанию сначала возвращают `approval_required` и выполняются только после отдельного подтверждённого запроса той же сессии.
+
+## Run API
+
+Новый клиент сначала регистрирует доверенный локальный workspace, после чего
+использует только его server-generated `workspace_id`:
+
+```text
+POST /api/v1/workspaces
+GET  /api/v1/workspaces
+POST /api/v1/runs
+GET  /api/v1/runs/{run_id}
+GET  /api/v1/runs/{run_id}/events?after=0
+POST /api/v1/runs/{run_id}/cancel
+POST /api/v1/approvals/{approval_id}/decision
+```
+
+SSE events имеют монотонный `sequence`, поэтому timeline можно восстановить после
+перезапуска или reconnect. Interrupted `running/verifying` run после restart
+становится `failed` с безопасным `worker_restarted`; queued run возобновляется,
+waiting approval сохраняется.
+
+`POST /api/v1/chat` сохранён без изменения request shape. Он создаёт Run в default
+workspace и ждёт terminal/waiting-approval state. Переданный `project_path` больше
+не определяет область tools.
 
 ## Инструменты
 
@@ -177,6 +217,8 @@ Invoke-RestMethod `
 | `MEMORY_FILE_PATH` | `data/memory/interactions.jsonl` | JSONL-файл памяти. |
 | `SESSION_MAX_SESSIONS` | `200` | Максимум in-memory сессий. |
 | `SESSION_MAX_MESSAGES` | `50` | Максимум сообщений в истории сессии. |
+| `STATE_DB_PATH` | OS app-data/state | SQLite/WAL с runs, events, sessions и approvals. |
+| `RUN_EVENT_POLL_INTERVAL_SECONDS` | `0.1` | Интервал polling для SSE и sync adapter. |
 | `AGENT_MAX_STEPS` | `6` | Максимум LLM-turns в одном execution loop. |
 | `AGENT_MAX_TOOL_CALLS` | `10` | Общий лимит запрошенных tool calls. |
 | `AGENT_TIMEOUT_SECONDS` | `120` | Общий deadline одного execution loop. |

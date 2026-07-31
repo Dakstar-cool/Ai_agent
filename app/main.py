@@ -8,6 +8,7 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+import app.api.routes.runs as run_routes
 from app.api.routes.chat import close_orchestrator
 from app.api.routes.chat import router as chat_router
 from app.config.settings import get_settings
@@ -53,12 +54,15 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        run_routes.get_run_service()
         yield
+        await run_routes.close_run_service()
         await close_orchestrator()
 
     app = FastAPI(title=settings.app_name, lifespan=lifespan)
     app.state.rate_limit_state = {}
     app.include_router(chat_router, prefix="/api/v1")
+    app.include_router(run_routes.router, prefix="/api/v1")
 
     @app.middleware("http")
     async def add_request_context(request: Request, call_next):
@@ -160,7 +164,7 @@ def create_app() -> FastAPI:
             "status": "ok",
             "env": settings.app_env,
             "component": "ai-agent-worker",
-            "version": "0.2.0",
+            "version": "0.3.0",
             "protocol_version": PROTOCOL_VERSION,
         }
 

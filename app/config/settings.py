@@ -1,3 +1,5 @@
+import os
+import sys
 from functools import lru_cache
 from pathlib import Path
 
@@ -31,6 +33,8 @@ class Settings(BaseSettings):
 
     session_max_sessions: int = 200
     session_max_messages: int = 50
+    state_db_path: str | None = None
+    run_event_poll_interval_seconds: float = Field(default=0.1, gt=0, le=5)
 
     agent_max_steps: int = Field(default=6, ge=1, le=50)
     agent_max_tool_calls: int = Field(default=10, ge=1, le=100)
@@ -53,6 +57,34 @@ class Settings(BaseSettings):
         if path.is_absolute():
             return path
         return ROOT_DIR / path
+
+    def resolve_state_db_path(self) -> Path:
+        if self.state_db_path and self.state_db_path.strip():
+            return self.resolve_project_path(self.state_db_path)
+
+        if sys.platform == "win32":
+            base = Path(
+                os.environ.get("LOCALAPPDATA")
+                or os.environ.get("APPDATA")
+                or Path.home()
+            )
+            return base / "AI Agent" / "worker.sqlite3"
+        if sys.platform == "darwin":
+            return (
+                Path.home()
+                / "Library"
+                / "Application Support"
+                / "AI Agent"
+                / "worker.sqlite3"
+            )
+
+        xdg_state_home = os.environ.get("XDG_STATE_HOME")
+        base = (
+            Path(xdg_state_home)
+            if xdg_state_home
+            else Path.home() / ".local" / "state"
+        )
+        return base / "ai-agent" / "worker.sqlite3"
 
     def allowed_tool_commands(self) -> set[str]:
         return {

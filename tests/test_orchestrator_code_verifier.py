@@ -77,7 +77,7 @@ async def test_failed_code_verifier_result_is_failed_step() -> None:
 
     code_step = next(step for step in response.steps if step.name == "code_verifier")
     assert code_step.status == "failed"
-    assert response.reply == "ok"
+    assert response.reply == "Execution failed code verification."
 
 
 @pytest.mark.asyncio
@@ -94,3 +94,4 @@ async def test_code_verifier_exception_is_safe_failed_step() -> None:
         "error_type": "RuntimeError",
     }
     assert "secret traceback details" not in str(code_step.payload)
+    assert response.reply == "Execution failed code verification."

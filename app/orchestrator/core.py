@@ -138,19 +138,22 @@ class Orchestrator:
                 ExecutionStep(name="verification", status="ok", payload={})
             )
 
-        await self._maybe_run_code_verifier(
+        code_verification_ok = await self._maybe_run_code_verifier(
             request=request,
             route=route,
             session_id=session.session_id,
             execution_log=execution_log,
         )
+        overall_verification_ok = ok and code_verification_ok
+        if ok and not code_verification_ok:
+            llm_reply = "Execution failed code verification."
 
         await self._save_memory(
             request=request,
             session_id=session.session_id,
             route=route,
             llm_reply=llm_reply,
-            verification_ok=ok,
+            verification_ok=overall_verification_ok,
         )
 
         # Важно: сохраняем user message только после сборки контекста.
@@ -536,6 +539,7 @@ class Orchestrator:
                 "output": {
                     **tool_result.output,
                     "approval_id": pending.approval_id,
+                    "preview_hash": pending.approval_hash,
                     "expires_in_seconds": round(
                         self.approval_store.remaining_seconds(pending), 3
                     ),
@@ -777,11 +781,11 @@ class Orchestrator:
         route: str,
         session_id: str,
         execution_log: list[ExecutionStep],
-    ) -> None:
+    ) -> bool:
         if route != "coding":
-            return
+            return True
         if request.metadata.get("verify_code") is not True:
-            return
+            return True
         if self.code_verifier is None:
             execution_log.append(
                 ExecutionStep(
@@ -790,7 +794,7 @@ class Orchestrator:
                     payload={"error": "code_verifier_not_configured"},
                 )
             )
-            return
+            return False
 
         try:
             result = await self.code_verifier.verify()
@@ -810,7 +814,7 @@ class Orchestrator:
                     },
                 )
             )
-            return
+            return False
 
         execution_log.append(
             ExecutionStep(
@@ -819,3 +823,4 @@ class Orchestrator:
                 payload=result,
             )
         )
+        return result.get("ok") is True
