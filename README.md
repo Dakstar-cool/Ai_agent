@@ -2,7 +2,7 @@
 
 Локальный каркас AI-агента на FastAPI с отдельным orchestration layer, LM Studio как текущим LLM backend, опциональной локальной памятью и безопасным набором инструментов для работы с проектом.
 
-Worker `0.6.0` содержит безопасный tool-calling foundation, persistent Run API,
+Worker `0.7.0` содержит безопасный tool-calling foundation, persistent Run API,
 изолированный coding workflow и policy-controlled autonomy modes.
 Один LLM-шаг Planner выполняется через ограниченный loop, автоматически запускающий
 только read-only tools. Runs, events, sessions и approvals сохраняются в SQLite/WAL.
@@ -35,6 +35,9 @@ Worker `0.6.0` содержит безопасный tool-calling foundation, pe
   mode; protected paths и destructive git нельзя разрешить повышением автономности.
 - Каждая выполненная мутация оставляет append-only `policy_audit` с решением policy и
   post-action SHA-256.
+- LLM tool calls сохраняются отдельными `RunEvent`; task worktree report содержит
+  безопасно ограниченный unified diff, а импорт handoff блокируется до создания
+  worktree, если указанный base SHA отсутствует или уже связан с другой базой.
 - Тесты для API, роутинга, инструментов, памяти, ошибок, настроек и верификации.
 
 ## Структура проекта

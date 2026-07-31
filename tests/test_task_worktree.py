@@ -82,6 +82,11 @@ async def test_task_worktree_isolates_dirty_source_and_creates_local_commit(
     assert report["changed_files"] == ["app.txt", "new.txt"]
     assert "app.txt" in report["diff_stat"]
     assert "new.txt | untracked" in report["diff_stat"]
+    assert "-base" in report["unified_diff"]
+    assert "+agent change" in report["unified_diff"]
+    assert "+++ b/new.txt" in report["unified_diff"]
+    assert "+new file" in report["unified_diff"]
+    assert report["diff_truncated"] is False
 
     committed = await service.commit(
         task_id="task-001",
@@ -159,6 +164,42 @@ async def test_task_worktree_creation_is_idempotent_for_same_task(tmp_path) -> N
     )
 
     assert second == first
+
+
+@pytest.mark.asyncio
+async def test_existing_task_worktree_rejects_a_different_handoff_base(tmp_path) -> None:
+    repository, base_sha = _repository(tmp_path)
+    service, workspace_id = _service(tmp_path, repository)
+    await service.create(
+        task_id="task-handoff",
+        source_workspace_id=workspace_id,
+        base_sha=base_sha,
+    )
+
+    with pytest.raises(AppError) as error:
+        await service.create(
+            task_id="task-handoff",
+            source_workspace_id=workspace_id,
+            base_sha="b" * 40,
+        )
+
+    assert error.value.code == "handoff_base_mismatch"
+
+
+@pytest.mark.asyncio
+async def test_handoff_base_must_exist_before_worktree_mutation(tmp_path) -> None:
+    repository, _base_sha = _repository(tmp_path)
+    service, workspace_id = _service(tmp_path, repository)
+
+    with pytest.raises(AppError) as error:
+        await service.create(
+            task_id="task-missing-base",
+            source_workspace_id=workspace_id,
+            base_sha="b" * 40,
+        )
+
+    assert error.value.code == "handoff_base_mismatch"
+    assert not (tmp_path / "worktrees" / "task-missing-base").exists()
 
 
 @pytest.mark.asyncio

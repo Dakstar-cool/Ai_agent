@@ -322,6 +322,8 @@ class RunService:
             event_type = "tool_result"
             if step.name == "llm_chat":
                 event_type = "llm_response"
+            elif step.name == "tool_call":
+                event_type = "tool_call"
             elif step.name == "policy_audit":
                 event_type = "policy_audit"
             elif step.name in {"verification", "code_verifier"}:

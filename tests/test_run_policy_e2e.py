@@ -87,6 +87,11 @@ async def test_autonomous_run_persists_mutation_audit_without_approval(tmp_path)
         "autonomous change\n"
     )
     assert not any(event.type == "approval_required" for event in events)
+    tool_call = next(event for event in events if event.type == "tool_call")
+    tool_result = next(event for event in events if event.type == "tool_result")
+    assert tool_call.sequence < tool_result.sequence
+    assert tool_call.payload["result"]["id"] == "autonomous-write"
+    assert tool_call.payload["result"]["arguments"]["path"] == "src/app.py"
     audit = next(event for event in events if event.type == "policy_audit")
     assert audit.payload["result"]["decision"]["mode"] == "autonomous"
     assert len(audit.payload["result"]["post_action_hash"]) == 64

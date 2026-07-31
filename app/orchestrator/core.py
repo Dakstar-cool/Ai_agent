@@ -663,6 +663,13 @@ class Orchestrator:
 
                     conversation.append(response.to_assistant_message())
                     for tool_call in response.tool_calls:
+                        execution_log.append(
+                            ExecutionStep(
+                                name="tool_call",
+                                status="requested",
+                                payload=tool_call.model_dump(mode="json"),
+                            )
+                        )
                         signature = self._tool_call_signature(tool_call)
                         if signature in seen_calls:
                             tool_result = self._duplicate_tool_result(tool_call)

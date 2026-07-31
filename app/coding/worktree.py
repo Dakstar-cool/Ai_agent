@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import difflib
 import re
 from pathlib import Path
 from typing import Any
@@ -45,6 +46,12 @@ class TaskWorktreeService:
                 raise AppError(
                     message="Task ID is already bound to another workspace",
                     code="task_worktree_conflict",
+                    status_code=409,
+                )
+            if base_sha is not None and existing.base_sha != base_sha.casefold():
+                raise AppError(
+                    message="Existing task worktree uses another base commit",
+                    code="handoff_base_mismatch",
                     status_code=409,
                 )
             return existing
@@ -117,6 +124,9 @@ class TaskWorktreeService:
             cwd=root,
         )
         diff_stat = await self._git(["diff", "--stat", "HEAD", "--"], cwd=root)
+        tracked_diff = await self._git(
+            ["diff", "--no-ext-diff", "--unified=3", "HEAD", "--"], cwd=root
+        )
         changed_files = self._changed_files_from_status(status["stdout"])
         untracked = [
             path
@@ -125,6 +135,28 @@ class TaskWorktreeService:
         ]
         diff_stat_lines = [diff_stat["stdout"]] if diff_stat["stdout"] else []
         diff_stat_lines.extend(f"{path} | untracked" for path in untracked)
+        unified_diff = tracked_diff["stdout"]
+        for relative_path in untracked:
+            if len(unified_diff) >= self.max_output_chars:
+                break
+            path = resolve_workspace_path(root, relative_path)
+            if not path.is_file() or path.is_symlink():
+                continue
+            try:
+                content = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError):
+                addition = f"Binary or unreadable untracked file: {relative_path}\n"
+            else:
+                addition = "".join(
+                    difflib.unified_diff(
+                        [],
+                        content.splitlines(keepends=True),
+                        fromfile="/dev/null",
+                        tofile=f"b/{relative_path}",
+                    )
+                )
+            separator = "\n" if unified_diff and not unified_diff.endswith("\n") else ""
+            unified_diff = f"{unified_diff}{separator}{addition}"
         return {
             "task_id": task_id,
             "branch": record.branch,
@@ -132,6 +164,8 @@ class TaskWorktreeService:
             "worktree_workspace_id": record.worktree_workspace_id,
             "changed_files": changed_files,
             "diff_stat": "\n".join(diff_stat_lines),
+            "unified_diff": unified_diff[: self.max_output_chars],
+            "diff_truncated": len(unified_diff) > self.max_output_chars,
             "status": status["stdout"],
         }
 
@@ -248,10 +282,19 @@ class TaskWorktreeService:
                 code="invalid_base_sha",
                 status_code=400,
             )
-        result = await self._git(
-            ["rev-parse", "--verify", f"{revision}^{{commit}}"],
-            cwd=root,
-        )
+        try:
+            result = await self._git(
+                ["rev-parse", "--verify", f"{revision}^{{commit}}"],
+                cwd=root,
+            )
+        except AppError as exc:
+            if requested is not None and exc.code == "git_operation_failed":
+                raise AppError(
+                    message="Handoff base commit is not available in this repository",
+                    code="handoff_base_mismatch",
+                    status_code=409,
+                ) from exc
+            raise
         commit = result["stdout"].strip()
         if not re.fullmatch(r"[a-fA-F0-9]{40,64}", commit):
             raise AppError(
