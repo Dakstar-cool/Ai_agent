@@ -15,6 +15,7 @@ from app.orchestrator.session.manager import SessionManager
 from app.orchestrator.synthesis.result_synthesizer import ResultSynthesizer
 from app.orchestrator.verification.code_verifier import CodeVerifier
 from app.orchestrator.verification.verifier import Verifier
+from app.policy import PolicyUsage, RunPolicy
 from app.providers.llm.base import ILLMProvider
 from app.providers.llm.models import LLMResponse, ToolCall
 from app.providers.memory.base import IMemoryService
@@ -67,12 +68,25 @@ class Orchestrator:
     async def handle(self, request: ChatRequest) -> ChatResponse:
         request_id = get_request_id()
         session = self.session_manager.get_or_create(request.session_id)
+        try:
+            run_policy = RunPolicy.model_validate(
+                request.metadata.get("run_policy", RunPolicy.safe())
+            )
+        except ValueError as exc:
+            raise AppError(
+                message="Run policy is invalid",
+                code="invalid_run_policy",
+                status_code=400,
+            ) from exc
+        policy_usage = PolicyUsage()
 
         execution_log: list[ExecutionStep] = []
         approved_exchange = await self._maybe_execute_approved_tool(
             request=request,
             session_id=session.session_id,
             execution_log=execution_log,
+            run_policy=run_policy,
+            policy_usage=policy_usage,
         )
 
         route = (
@@ -115,6 +129,8 @@ class Orchestrator:
                 project_path=project_path,
                 current_reply=llm_reply,
                 execution_log=execution_log,
+                run_policy=run_policy,
+                policy_usage=policy_usage,
             )
 
         ok, error = self.verifier.verify(llm_reply)
@@ -191,6 +207,8 @@ class Orchestrator:
         project_path: str | None,
         current_reply: str,
         execution_log: list[ExecutionStep],
+        run_policy: RunPolicy,
+        policy_usage: PolicyUsage,
     ) -> str:
         kind = step.get("kind")
         logger.info(
@@ -206,6 +224,8 @@ class Orchestrator:
                 index=index,
                 session_id=session_id,
                 execution_log=execution_log,
+                run_policy=run_policy,
+                policy_usage=policy_usage,
             )
             return current_reply
 
@@ -217,6 +237,8 @@ class Orchestrator:
                 route=route,
                 project_path=project_path,
                 execution_log=execution_log,
+                run_policy=run_policy,
+                policy_usage=policy_usage,
             )
 
         execution_log.append(
@@ -240,6 +262,8 @@ class Orchestrator:
         index: int,
         session_id: str,
         execution_log: list[ExecutionStep],
+        run_policy: RunPolicy,
+        policy_usage: PolicyUsage,
     ) -> None:
         tool_name = step.get("tool_name")
         if not tool_name:
@@ -258,7 +282,11 @@ class Orchestrator:
             )
 
         try:
-            tool_result = await self.dispatcher.execute(step)
+            tool_result = await self.dispatcher.execute(
+                step,
+                policy=run_policy,
+                policy_usage=policy_usage,
+            )
 
             result_payload = tool_result["result"]
             status = tool_result.get("status", "ok")
@@ -277,6 +305,9 @@ class Orchestrator:
                     payload=result_payload,
                 )
             )
+            audit = tool_result.get("audit")
+            if isinstance(audit, dict):
+                self._append_policy_audit(execution_log, audit)
 
             logger.info(
                 "execution_step_done session_id=%s index=%s kind=tool tool=%s status=%s",
@@ -348,6 +379,8 @@ class Orchestrator:
         route: str,
         project_path: str | None,
         execution_log: list[ExecutionStep],
+        run_policy: RunPolicy,
+        policy_usage: PolicyUsage,
     ) -> str:
         args = step.get("args")
         if not isinstance(args, dict):
@@ -391,6 +424,8 @@ class Orchestrator:
                 project_path=project_path,
                 initial_tool_calls=initial_tool_calls,
                 execution_log=execution_log,
+                run_policy=run_policy,
+                policy_usage=policy_usage,
             )
         except AppError as exc:
             execution_log.append(
@@ -442,6 +477,8 @@ class Orchestrator:
         request: ChatRequest,
         session_id: str,
         execution_log: list[ExecutionStep],
+        run_policy: RunPolicy,
+        policy_usage: PolicyUsage,
     ) -> tuple[PendingApproval, ToolResult] | None:
         raw_approval_id = request.metadata.get("approve_tool_call_id")
         if raw_approval_id is None:
@@ -462,6 +499,8 @@ class Orchestrator:
             pending.tool_call,
             approved_mutation=True,
             mutation_preview=pending.mutation_preview,
+            policy=run_policy,
+            policy_usage=policy_usage,
         )
         tool_result = tool_result.model_copy(
             update={
@@ -482,6 +521,8 @@ class Orchestrator:
                 },
             )
         )
+        if tool_result.audit is not None:
+            self._append_policy_audit(execution_log, tool_result.audit)
         logger.info(
             "approved_tool_executed session_id=%s tool=%s status=%s",
             session_id,
@@ -565,6 +606,8 @@ class Orchestrator:
         project_path: str | None,
         initial_tool_calls: list[ToolCall],
         execution_log: list[ExecutionStep],
+        run_policy: RunPolicy,
+        policy_usage: PolicyUsage,
     ) -> str:
         conversation = [dict(message) for message in messages]
         tool_definitions = self.tool_registry.definitions()
@@ -616,7 +659,11 @@ class Orchestrator:
                             tool_result = self._duplicate_tool_result(tool_call)
                         else:
                             seen_calls.add(signature)
-                            tool_result = await self.dispatcher.execute_call(tool_call)
+                            tool_result = await self.dispatcher.execute_call(
+                                tool_call,
+                                policy=run_policy,
+                                policy_usage=policy_usage,
+                            )
                             if tool_result.status == "approval_required":
                                 tool_result = self._register_pending_approval(
                                     session_id=session_id,
@@ -637,6 +684,8 @@ class Orchestrator:
                                 },
                             )
                         )
+                        if tool_result.audit is not None:
+                            self._append_policy_audit(execution_log, tool_result.audit)
                         conversation.append(tool_result.to_message())
 
                 self._append_loop_stop(
@@ -659,6 +708,14 @@ class Orchestrator:
                 self.agent_timeout_seconds,
             )
             return "Agent execution stopped: execution deadline reached."
+
+    @staticmethod
+    def _append_policy_audit(
+        execution_log: list[ExecutionStep], audit: dict[str, Any]
+    ) -> None:
+        execution_log.append(
+            ExecutionStep(name="policy_audit", status="ok", payload=audit)
+        )
 
     def _normalize_llm_response(self, response: Any) -> LLMResponse:
         if isinstance(response, LLMResponse):

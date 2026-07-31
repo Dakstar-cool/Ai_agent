@@ -27,6 +27,7 @@ class WriteFileTool(ITool):
         "required": ["path", "content"],
         "additionalProperties": False,
     }
+    mutation_kind = "write"
 
     def __init__(self, root_dir: str | Path, max_bytes: int = 200_000) -> None:
         self.root_dir = Path(root_dir).resolve()

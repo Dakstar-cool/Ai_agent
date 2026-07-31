@@ -28,6 +28,7 @@ class LocalCommitTool(ITool):
         "required": ["task_id", "message", "paths"],
         "additionalProperties": False,
     }
+    mutation_kind = "git_commit"
 
     def __init__(
         self,

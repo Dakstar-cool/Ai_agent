@@ -14,6 +14,7 @@ from app.runs.models import (
     TaskWorktreeRecord,
     WorkspaceRecord,
 )
+from app.policy import RunPolicy
 from app.schemas.chat import MAX_MESSAGE_LENGTH, MAX_METADATA_BYTES
 
 
@@ -23,6 +24,7 @@ class CreateRunRequest(BaseModel):
     session_id: UUID | None = None
     message: str = Field(min_length=1, max_length=MAX_MESSAGE_LENGTH)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    policy: RunPolicy = Field(default_factory=RunPolicy.safe)
 
     @model_validator(mode="after")
     def validate_metadata_size(self) -> "CreateRunRequest":

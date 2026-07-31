@@ -166,7 +166,7 @@ def create_app() -> FastAPI:
             "status": "ok",
             "env": settings.app_env,
             "component": "ai-agent-worker",
-            "version": "0.4.0",
+            "version": "0.5.0",
             "protocol_version": PROTOCOL_VERSION,
         }
 

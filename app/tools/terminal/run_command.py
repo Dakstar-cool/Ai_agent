@@ -23,6 +23,7 @@ class RunCommandTool(ITool):
         "anyOf": [{"required": ["command"]}, {"required": ["args"]}],
         "additionalProperties": False,
     }
+    mutation_kind = "command"
 
     blocked_executables = frozenset(
         {

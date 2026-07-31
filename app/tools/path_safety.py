@@ -25,6 +25,27 @@ PROTECTED_PATH_PARTS = frozenset(
 )
 
 IGNORED_DIRS = PROTECTED_PATH_PARTS | frozenset({".idea", "ai_agentv1.egg-info"})
+PROTECTED_FILE_PATTERNS = (
+    ".env.*",
+    ".npmrc",
+    ".pypirc",
+    "credentials",
+    "credentials.*",
+    "id_rsa",
+    "id_ed25519",
+    "secrets.*",
+)
+
+
+def is_protected_relative_path(value: str) -> bool:
+    normalized = value.replace("\\", "/")
+    parts = tuple(part.casefold() for part in Path(normalized).parts)
+    if any(part in PROTECTED_PATH_PARTS for part in parts):
+        return True
+    return any(
+        any(Path(part).match(pattern) for pattern in PROTECTED_FILE_PATTERNS)
+        for part in parts
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,7 +105,7 @@ class WorkspacePathPolicy:
             return None
 
         for part in relative.parts:
-            if part.lower() in self.protected_parts:
+            if part.lower() in self.protected_parts or is_protected_relative_path(part):
                 return part
         return None
 

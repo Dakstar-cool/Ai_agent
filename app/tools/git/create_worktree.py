@@ -26,6 +26,7 @@ class CreateTaskWorktreeTool(ITool):
         "required": ["task_id"],
         "additionalProperties": False,
     }
+    mutation_kind = "worktree"
 
     def __init__(
         self,

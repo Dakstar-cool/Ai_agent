@@ -14,6 +14,7 @@ class ToolResult(BaseModel):
     name: str = Field(min_length=1)
     status: ToolResultStatus
     output: dict[str, Any] = Field(default_factory=dict)
+    audit: dict[str, Any] | None = Field(default=None, exclude=True)
 
     def to_message(self) -> dict[str, Any]:
         return {

@@ -4,7 +4,7 @@
 
 ## Текущий milestone
 
-`M3 — безопасный coding workflow` реализован; следующий milestone — `M4`.
+`M4 — policy engine и autonomy modes` реализован; следующий milestone — `M5`.
 Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio smoke.
 
 ## Завершено
@@ -38,6 +38,16 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
   push/reset/clean/delete отсутствуют;
 - fake-provider E2E покрывает путь coding prompt → preview → approval → write → verify
   и доказывает изоляцию исходного workspace.
+- M4: `RunPolicy` поддерживает safe/supervised/autonomous, server-bound TTL,
+  allow-list tools, path globs, write/command limits и network permission;
+- policy precedence реализован как hard deny → organization/project → task grant →
+  requested mode;
+- protected/secrets paths, workspace escape и destructive git блокируются даже в
+  autonomous mode и после обычного approval;
+- mutation audit сохраняется в append-only RunEvent с policy decision и
+  post-action SHA-256;
+- policy unit/E2E доказывают scoped autonomous write без approval и невозможность
+  обхода hard deny; полный M4 gate: 109 tests, compileall и ruff — зелёные.
 
 ## Незакрытый release gate M0
 
@@ -50,17 +60,19 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
 
 ## Следующий milestone
 
-`M4 — policy engine и autonomy modes`:
+`M5 — cross-platform desktop MVP`:
 
-1. типизированный `RunPolicy` для safe/supervised/autonomous;
-2. hard deny перед любыми task grants и requested mode;
-3. TTL, path globs, allowed tools, write/command limits и network flag;
-4. audit events и post-action hashes для выполненных мутаций;
-5. policy-тесты, доказывающие, что autonomous не обходит hard deny.
+1. Tauri 2 + React/TypeScript shell и sidecar lifecycle;
+2. bootstrap bearer token через stdin и random loopback port;
+3. workspace selector, run timeline/SSE, approvals и diff preview;
+4. secure provider settings, recovery, diagnostics и offline-ready local UX;
+5. Windows/Linux/macOS CI, packaging and signing foundation.
 
 ## Известные gaps
 
-- policy engine, desktop, hub, outbox и handoff ещё не реализованы;
+- desktop, hub, outbox и handoff ещё не реализованы;
+- organization/project policy boundaries поддержаны evaluator-ом, но их удалённое
+  администрирование появится вместе с hub и OIDC/RBAC;
 - Run API пока ожидает, что desktop сначала явно создаст task worktree, а затем запустит
   coding Run по его `worktree_workspace_id`; единый high-level create-task endpoint ещё не добавлен;
 - SQLite operations пока синхронные и рассчитаны на local single-worker workload;

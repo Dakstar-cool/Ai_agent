@@ -88,11 +88,13 @@ async def list_workspaces() -> list[WorkspaceResponse]:
 
 @router.post("/runs", response_model=RunResponse, status_code=status.HTTP_202_ACCEPTED)
 async def create_run(request: CreateRunRequest) -> RunResponse:
+    metadata = dict(request.metadata)
+    metadata["run_policy"] = request.policy.model_dump(mode="json")
     run = await get_run_service().create_run(
         workspace_id=str(request.workspace_id),
         session_id=str(request.session_id) if request.session_id is not None else None,
         message=request.message,
-        metadata=request.metadata,
+        metadata=metadata,
     )
     return RunResponse.from_record(run)
 

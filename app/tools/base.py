@@ -7,6 +7,8 @@ class ITool(ABC):
     description: str
     input_schema: dict[str, Any]
     read_only: bool = False
+    mutation_kind: str | None = None
+    network_access: bool = False
 
     def definition(self) -> dict[str, Any]:
         return {

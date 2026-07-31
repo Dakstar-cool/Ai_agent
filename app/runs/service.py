@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from app.errors import AppError
 from app.orchestrator.core import Orchestrator
+from app.policy import RunPolicy
 from app.runs.models import RunRecord, RunState
 from app.schemas.chat import ChatRequest, ChatResponse, ExecutionStep
 from app.state.store import SQLiteStateStore
@@ -40,12 +41,24 @@ class RunService:
         message: str,
         metadata: dict[str, Any],
     ) -> RunRecord:
+        try:
+            policy = RunPolicy.model_validate(
+                metadata.get("run_policy", RunPolicy.safe())
+            ).activate()
+        except ValueError as exc:
+            raise AppError(
+                message="Run policy is invalid",
+                code="invalid_run_policy",
+                status_code=400,
+            ) from exc
+        persisted_metadata = dict(metadata)
+        persisted_metadata["run_policy"] = policy.model_dump(mode="json")
         run = self.state_store.create_run(
             run_id=str(uuid4()),
             workspace_id=workspace_id,
             session_id=session_id or str(uuid4()),
             message=message,
-            metadata=metadata,
+            metadata=persisted_metadata,
         )
         self._schedule(run.id)
         return run
@@ -309,6 +322,8 @@ class RunService:
             event_type = "tool_result"
             if step.name == "llm_chat":
                 event_type = "llm_response"
+            elif step.name == "policy_audit":
+                event_type = "policy_audit"
             elif step.name in {"verification", "code_verifier"}:
                 event_type = "verification"
                 verification_failed = verification_failed or step.status == "failed"

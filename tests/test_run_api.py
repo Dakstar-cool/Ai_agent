@@ -129,6 +129,55 @@ def test_run_api_rejects_incompatible_protocol(run_api) -> None:
     assert response.status_code == 422
 
 
+def test_run_api_persists_server_activated_policy_grant(run_api) -> None:
+    client, state, workspace_id, _orchestrator = run_api
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "schema_version": "0.1.0",
+            "workspace_id": workspace_id,
+            "message": "supervised change",
+            "policy": {
+                "schema_version": "0.1.0",
+                "mode": "supervised",
+                "ttl_seconds": 120,
+                "issued_at": "2000-01-01T00:00:00Z",
+                "allowed_tools": ["write_file"],
+                "path_globs": ["src/**"],
+                "max_writes": 1,
+            },
+        },
+    )
+
+    assert response.status_code == 202
+    policy = state.require_run(response.json()["id"]).metadata["run_policy"]
+    assert policy["mode"] == "supervised"
+    assert policy["issued_at"] != "2000-01-01T00:00:00Z"
+
+
+def test_run_api_rejects_non_safe_policy_without_ttl(run_api) -> None:
+    client, _state, workspace_id, _orchestrator = run_api
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "schema_version": "0.1.0",
+            "workspace_id": workspace_id,
+            "message": "unsafe grant",
+            "policy": {
+                "schema_version": "0.1.0",
+                "mode": "autonomous",
+                "allowed_tools": ["write_file"],
+                "path_globs": ["**"],
+                "max_writes": 1,
+            },
+        },
+    )
+
+    assert response.status_code == 422
+
+
 def test_cancel_endpoint_cancels_persisted_queued_run(run_api) -> None:
     client, state, workspace_id, _orchestrator = run_api
     run = state.create_run(

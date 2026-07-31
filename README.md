@@ -2,8 +2,8 @@
 
 Локальный каркас AI-агента на FastAPI с отдельным orchestration layer, LM Studio как текущим LLM backend, опциональной локальной памятью и безопасным набором инструментов для работы с проектом.
 
-Worker `0.4.0` содержит безопасный tool-calling foundation, persistent Run API и
-изолированный coding workflow в task worktree.
+Worker `0.5.0` содержит безопасный tool-calling foundation, persistent Run API,
+изолированный coding workflow и policy-controlled autonomy modes.
 Один LLM-шаг Planner выполняется через ограниченный loop, автоматически запускающий
 только read-only tools. Runs, events, sessions и approvals сохраняются в SQLite/WAL.
 
@@ -29,6 +29,12 @@ Worker `0.4.0` содержит безопасный tool-calling foundation, pe
   перед атомарной записью.
 - Verification/diff report и опциональный локальный commit; push, clean, reset и
   удаление worktree не поддерживаются.
+- Типизированный `RunPolicy`: safe, supervised и autonomous с TTL, tool/path scope,
+  лимитами writes/commands и явным network permission.
+- Порядок policy: hard deny → organization/project boundary → task grant → requested
+  mode; protected paths и destructive git нельзя разрешить повышением автономности.
+- Каждая выполненная мутация оставляет append-only `policy_audit` с решением policy и
+  post-action SHA-256.
 - Тесты для API, роутинга, инструментов, памяти, ошибок, настроек и верификации.
 
 ## Структура проекта
@@ -144,6 +150,34 @@ waiting approval сохраняется.
 `POST /api/v1/chat` сохранён без изменения request shape. Он создаёт Run в default
 workspace и ждёт terminal/waiting-approval state. Переданный `project_path` больше
 не определяет область tools.
+
+### Run policy
+
+Без поля `policy` каждый Run использует `safe`: read-only tools выполняются сразу,
+любая мутация возвращает preview и требует approval. Ограниченный grant задаётся
+только для Run API, а его время начала фиксирует worker:
+
+```json
+{
+  "schema_version": "0.1.0",
+  "workspace_id": "00000000-0000-0000-0000-000000000000",
+  "message": "Исправь src/app.py и запусти тесты",
+  "policy": {
+    "schema_version": "0.1.0",
+    "mode": "supervised",
+    "ttl_seconds": 300,
+    "allowed_tools": ["write_file", "run_command"],
+    "path_globs": ["src/**", "tests/**"],
+    "max_writes": 3,
+    "max_commands": 3,
+    "network_allowed": false
+  }
+}
+```
+
+Выход за grant возвращает approval или policy denial. Protected paths, workspace
+escape, destructive git и network без явного разрешения не обходятся режимом
+`autonomous`.
 
 ## Инструменты
 
