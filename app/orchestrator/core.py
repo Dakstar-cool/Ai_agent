@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 from typing import Any
 
 from app.errors import AppError
+from app.orchestrator.approval.store import PendingApproval, PendingApprovalStore
 from app.orchestrator.context.builder import ContextBuilder
 from app.orchestrator.execution.tool_dispatcher import ToolDispatcher
 from app.orchestrator.planning.planner import Planner
@@ -13,9 +16,11 @@ from app.orchestrator.synthesis.result_synthesizer import ResultSynthesizer
 from app.orchestrator.verification.code_verifier import CodeVerifier
 from app.orchestrator.verification.verifier import Verifier
 from app.providers.llm.base import ILLMProvider
+from app.providers.llm.models import LLMResponse, ToolCall
 from app.providers.memory.base import IMemoryService
 from app.providers.memory.policy import contains_sensitive_data
 from app.schemas.chat import ChatRequest, ChatResponse, ExecutionStep
+from app.tools.models import ToolResult
 from app.tools.registry import ToolRegistry
 from app.utils.request_context import get_request_id
 
@@ -37,6 +42,10 @@ class Orchestrator:
         verifier: Verifier | None = None,
         code_verifier: CodeVerifier | None = None,
         synthesizer: ResultSynthesizer | None = None,
+        max_steps: int = 6,
+        max_tool_calls: int = 10,
+        agent_timeout_seconds: float = 120.0,
+        approval_store: PendingApprovalStore | None = None,
     ) -> None:
         self.llm_provider = llm_provider
         self.memory_service = memory_service
@@ -50,19 +59,41 @@ class Orchestrator:
         self.verifier = verifier or Verifier()
         self.code_verifier = code_verifier
         self.synthesizer = synthesizer or ResultSynthesizer()
+        self.max_steps = max(1, max_steps)
+        self.max_tool_calls = max(1, max_tool_calls)
+        self.agent_timeout_seconds = max(0.1, agent_timeout_seconds)
+        self.approval_store = approval_store or PendingApprovalStore()
 
     async def handle(self, request: ChatRequest) -> ChatResponse:
         request_id = get_request_id()
         session = self.session_manager.get_or_create(request.session_id)
 
-        route = self.router.route(request.message)
+        execution_log: list[ExecutionStep] = []
+        approved_exchange = await self._maybe_execute_approved_tool(
+            request=request,
+            session_id=session.session_id,
+            execution_log=execution_log,
+        )
+
+        route = (
+            approved_exchange[0].route
+            if approved_exchange is not None
+            else self.router.route(request.message)
+        )
+        project_path = (
+            approved_exchange[0].project_path
+            if approved_exchange is not None
+            else request.project_path
+        )
         context = await self.context_builder.build(
             session=session,
             message=request.message,
             route=route,
-            project_path=request.project_path,
+            project_path=project_path,
         )
         plan = self.planner.make_plan(context=context, route=route)
+        if approved_exchange is not None:
+            self._attach_approved_exchange(plan, *approved_exchange)
 
         logger.info(
             "orchestrator_handle_start request_id=%s session_id=%s route=%s message_len=%s plan_steps=%s",
@@ -73,7 +104,6 @@ class Orchestrator:
             len(plan),
         )
 
-        execution_log: list[ExecutionStep] = []
         llm_reply = ""
 
         for index, step in enumerate(plan, start=1):
@@ -81,6 +111,8 @@ class Orchestrator:
                 step=step,
                 index=index,
                 session_id=session.session_id,
+                route=route,
+                project_path=project_path,
                 current_reply=llm_reply,
                 execution_log=execution_log,
             )
@@ -152,6 +184,8 @@ class Orchestrator:
         step: dict[str, Any],
         index: int,
         session_id: str,
+        route: str,
+        project_path: str | None,
         current_reply: str,
         execution_log: list[ExecutionStep],
     ) -> str:
@@ -177,6 +211,8 @@ class Orchestrator:
                 step=step,
                 index=index,
                 session_id=session_id,
+                route=route,
+                project_path=project_path,
                 execution_log=execution_log,
             )
 
@@ -222,9 +258,9 @@ class Orchestrator:
             tool_result = await self.dispatcher.execute(step)
 
             result_payload = tool_result["result"]
-            status = "ok"
+            status = tool_result.get("status", "ok")
 
-            if isinstance(result_payload, dict):
+            if status == "ok" and isinstance(result_payload, dict):
                 exit_code = result_payload.get(
                     "exit_code", result_payload.get("returncode")
                 )
@@ -306,6 +342,8 @@ class Orchestrator:
         step: dict[str, Any],
         index: int,
         session_id: str,
+        route: str,
+        project_path: str | None,
         execution_log: list[ExecutionStep],
     ) -> str:
         args = step.get("args")
@@ -325,7 +363,32 @@ class Orchestrator:
             )
 
         try:
-            llm_reply = await self.llm_provider.chat(**args)
+            messages = args.get("messages")
+            if not isinstance(messages, list):
+                raise AppError(
+                    message="LLM step messages must be a list",
+                    code="invalid_llm_step",
+                    status_code=500,
+                    details={"index": index},
+                )
+            initial_tool_calls = args.get("initial_tool_calls", [])
+            if not isinstance(initial_tool_calls, list) or not all(
+                isinstance(tool_call, ToolCall) for tool_call in initial_tool_calls
+            ):
+                raise AppError(
+                    message="Initial tool calls must be typed ToolCall values",
+                    code="invalid_llm_step",
+                    status_code=500,
+                    details={"index": index},
+                )
+            llm_reply = await self._run_agent_loop(
+                messages=messages,
+                session_id=session_id,
+                route=route,
+                project_path=project_path,
+                initial_tool_calls=initial_tool_calls,
+                execution_log=execution_log,
+            )
         except AppError as exc:
             execution_log.append(
                 ExecutionStep(
@@ -362,13 +425,6 @@ class Orchestrator:
                 details={"error_type": exc.__class__.__name__},
             ) from exc
 
-        execution_log.append(
-            ExecutionStep(
-                name="llm_chat",
-                status="ok",
-                payload={"reply_preview": llm_reply[:200]},
-            )
-        )
         logger.info(
             "execution_step_done session_id=%s index=%s kind=llm reply_len=%s",
             session_id,
@@ -376,6 +432,271 @@ class Orchestrator:
             len(llm_reply),
         )
         return llm_reply
+
+    async def _maybe_execute_approved_tool(
+        self,
+        *,
+        request: ChatRequest,
+        session_id: str,
+        execution_log: list[ExecutionStep],
+    ) -> tuple[PendingApproval, ToolResult] | None:
+        raw_approval_id = request.metadata.get("approve_tool_call_id")
+        if raw_approval_id is None:
+            return None
+        if not isinstance(raw_approval_id, str) or not raw_approval_id.strip():
+            raise AppError(
+                message="approve_tool_call_id must be a non-empty string",
+                code="invalid_approval_request",
+                status_code=400,
+            )
+
+        approval_id = raw_approval_id.strip()
+        pending = self.approval_store.consume(
+            approval_id=approval_id,
+            session_id=session_id,
+        )
+        tool_result = await self.dispatcher.execute_call(
+            pending.tool_call,
+            approved_mutation=True,
+        )
+        tool_result = tool_result.model_copy(
+            update={
+                "output": {
+                    **tool_result.output,
+                    "approval_id": approval_id,
+                    "approved": True,
+                }
+            }
+        )
+        execution_log.append(
+            ExecutionStep(
+                name=tool_result.name,
+                status=tool_result.status,
+                payload={
+                    "tool_call_id": tool_result.tool_call_id,
+                    **tool_result.output,
+                },
+            )
+        )
+        logger.info(
+            "approved_tool_executed session_id=%s tool=%s status=%s",
+            session_id,
+            pending.tool_call.name,
+            tool_result.status,
+        )
+        return pending, tool_result
+
+    def _attach_approved_exchange(
+        self,
+        plan: list[dict[str, Any]],
+        pending: PendingApproval,
+        tool_result: ToolResult,
+    ) -> None:
+        llm_step = next((step for step in plan if step.get("kind") == "llm"), None)
+        if llm_step is None:
+            raise AppError(
+                message="Planner did not return an LLM step for approved tool result",
+                code="invalid_approval_plan",
+                status_code=500,
+            )
+        args = llm_step.get("args")
+        messages = args.get("messages") if isinstance(args, dict) else None
+        if not isinstance(messages, list):
+            raise AppError(
+                message="Planner returned invalid messages for approved tool result",
+                code="invalid_approval_plan",
+                status_code=500,
+            )
+
+        messages.append(
+            LLMResponse(
+                tool_calls=[pending.tool_call], finish_reason="tool_calls"
+            ).to_assistant_message()
+        )
+        messages.append(tool_result.to_message())
+        args["initial_tool_calls"] = [pending.tool_call]
+
+    def _register_pending_approval(
+        self,
+        *,
+        session_id: str,
+        route: str,
+        project_path: str | None,
+        tool_call: ToolCall,
+        tool_result: ToolResult,
+    ) -> ToolResult:
+        pending = self.approval_store.create(
+            session_id=session_id,
+            tool_call=tool_call,
+            route=route,
+            project_path=project_path,
+        )
+        return tool_result.model_copy(
+            update={
+                "output": {
+                    **tool_result.output,
+                    "approval_id": pending.approval_id,
+                    "expires_in_seconds": round(
+                        self.approval_store.remaining_seconds(pending), 3
+                    ),
+                }
+            }
+        )
+
+    async def _run_agent_loop(
+        self,
+        *,
+        messages: list[dict[str, Any]],
+        session_id: str,
+        route: str,
+        project_path: str | None,
+        initial_tool_calls: list[ToolCall],
+        execution_log: list[ExecutionStep],
+    ) -> str:
+        conversation = [dict(message) for message in messages]
+        tool_definitions = self.tool_registry.definitions()
+        seen_calls = {
+            self._tool_call_signature(tool_call) for tool_call in initial_tool_calls
+        }
+        tool_call_count = len(initial_tool_calls)
+
+        try:
+            async with asyncio.timeout(self.agent_timeout_seconds):
+                for loop_step in range(1, self.max_steps + 1):
+                    chat_args: dict[str, Any] = {"messages": conversation}
+                    if tool_definitions:
+                        chat_args.update(
+                            {"tools": tool_definitions, "tool_choice": "auto"}
+                        )
+
+                    raw_response = await self.llm_provider.chat(**chat_args)
+                    response = self._normalize_llm_response(raw_response)
+                    execution_log.append(
+                        ExecutionStep(
+                            name="llm_chat",
+                            status="ok",
+                            payload={
+                                "loop_step": loop_step,
+                                "finish_reason": response.finish_reason,
+                                "tool_call_count": len(response.tool_calls),
+                                "reply_preview": response.content[:200],
+                            },
+                        )
+                    )
+
+                    if not response.tool_calls:
+                        return response.content
+
+                    if tool_call_count + len(response.tool_calls) > self.max_tool_calls:
+                        self._append_loop_stop(
+                            execution_log,
+                            reason="max_tool_calls_exceeded",
+                            loop_step=loop_step,
+                            tool_call_count=tool_call_count,
+                        )
+                        return "Agent execution stopped: maximum tool call limit reached."
+
+                    conversation.append(response.to_assistant_message())
+                    for tool_call in response.tool_calls:
+                        signature = self._tool_call_signature(tool_call)
+                        if signature in seen_calls:
+                            tool_result = self._duplicate_tool_result(tool_call)
+                        else:
+                            seen_calls.add(signature)
+                            tool_result = await self.dispatcher.execute_call(tool_call)
+                            if tool_result.status == "approval_required":
+                                tool_result = self._register_pending_approval(
+                                    session_id=session_id,
+                                    route=route,
+                                    project_path=project_path,
+                                    tool_call=tool_call,
+                                    tool_result=tool_result,
+                                )
+
+                        tool_call_count += 1
+                        execution_log.append(
+                            ExecutionStep(
+                                name=tool_result.name,
+                                status=tool_result.status,
+                                payload={
+                                    "tool_call_id": tool_result.tool_call_id,
+                                    **tool_result.output,
+                                },
+                            )
+                        )
+                        conversation.append(tool_result.to_message())
+
+                self._append_loop_stop(
+                    execution_log,
+                    reason="max_steps_exceeded",
+                    loop_step=self.max_steps,
+                    tool_call_count=tool_call_count,
+                )
+                return "Agent execution stopped: maximum step limit reached."
+        except TimeoutError:
+            self._append_loop_stop(
+                execution_log,
+                reason="deadline_exceeded",
+                loop_step=None,
+                tool_call_count=tool_call_count,
+            )
+            logger.warning(
+                "agent_loop_timeout session_id=%s timeout_seconds=%s",
+                session_id,
+                self.agent_timeout_seconds,
+            )
+            return "Agent execution stopped: execution deadline reached."
+
+    def _normalize_llm_response(self, response: Any) -> LLMResponse:
+        if isinstance(response, LLMResponse):
+            return response
+        if isinstance(response, str):
+            return LLMResponse(content=response, finish_reason="stop")
+        raise AppError(
+            message="LLM provider returned an unsupported response type",
+            code="llm_backend_bad_response",
+            status_code=502,
+            details={"response_type": response.__class__.__name__},
+        )
+
+    def _tool_call_signature(self, tool_call: ToolCall) -> str:
+        arguments = json.dumps(
+            tool_call.arguments, ensure_ascii=False, sort_keys=True, default=str
+        )
+        return f"{tool_call.name}:{arguments}"
+
+    def _duplicate_tool_result(self, tool_call: ToolCall) -> ToolResult:
+        return ToolResult(
+            tool_call_id=tool_call.id,
+            name=tool_call.name,
+            status="failed",
+            output={
+                "error": {
+                    "code": "duplicate_tool_call",
+                    "message": "An identical tool call was already processed",
+                }
+            },
+        )
+
+    def _append_loop_stop(
+        self,
+        execution_log: list[ExecutionStep],
+        *,
+        reason: str,
+        loop_step: int | None,
+        tool_call_count: int,
+    ) -> None:
+        execution_log.append(
+            ExecutionStep(
+                name="agent_loop",
+                status="failed",
+                payload={
+                    "reason": reason,
+                    "loop_step": loop_step,
+                    "tool_call_count": tool_call_count,
+                },
+            )
+        )
 
     async def _save_memory(
         self,

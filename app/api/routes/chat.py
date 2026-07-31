@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from app.config.settings import get_settings
+from app.orchestrator.approval.store import PendingApprovalStore
 from app.orchestrator.core import Orchestrator
 from app.orchestrator.session.manager import SessionManager
 from app.orchestrator.verification.code_verifier import CodeVerifier
@@ -89,6 +90,13 @@ def get_orchestrator() -> Orchestrator:
         session_manager=SessionManager(
             max_sessions=settings.session_max_sessions,
             max_messages=settings.session_max_messages,
+        ),
+        max_steps=settings.agent_max_steps,
+        max_tool_calls=settings.agent_max_tool_calls,
+        agent_timeout_seconds=settings.agent_timeout_seconds,
+        approval_store=PendingApprovalStore(
+            ttl_seconds=settings.approval_ttl_seconds,
+            max_pending=settings.approval_max_pending,
         ),
     )
 

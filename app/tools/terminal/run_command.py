@@ -13,6 +13,16 @@ from app.tools.path_safety import resolve_workspace_path
 class RunCommandTool(ITool):
     name = "run_command"
     description = "Execute an allow-listed command without a shell"
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "command": {"type": "string"},
+            "args": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+            "cwd": {"type": "string"},
+        },
+        "anyOf": [{"required": ["command"]}, {"required": ["args"]}],
+        "additionalProperties": False,
+    }
 
     blocked_executables = frozenset(
         {
@@ -183,15 +193,20 @@ class RunCommandTool(ITool):
         if executable == "git":
             return self._is_allowed_git_pattern(args)
         if executable == "uv":
-            return args == ["uv", "run", "pytest", "-q"] or args == [
-                "uv",
-                "run",
-                "python",
-                "-m",
-                "compileall",
-                "app",
-                "tests",
-            ]
+            return (
+                args == ["uv", "run", "pytest", "-q"]
+                or args
+                == [
+                    "uv",
+                    "run",
+                    "python",
+                    "-m",
+                    "compileall",
+                    "app",
+                    "tests",
+                ]
+                or args == ["uv", "run", "ruff", "check", "."]
+            )
         if executable == "ruff":
             return args == ["ruff", "check", "."]
         return False

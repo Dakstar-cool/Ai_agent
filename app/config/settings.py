@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +31,12 @@ class Settings(BaseSettings):
 
     session_max_sessions: int = 200
     session_max_messages: int = 50
+
+    agent_max_steps: int = Field(default=6, ge=1, le=50)
+    agent_max_tool_calls: int = Field(default=10, ge=1, le=100)
+    agent_timeout_seconds: float = Field(default=120.0, gt=0, le=600)
+    approval_ttl_seconds: float = Field(default=300.0, gt=0, le=3600)
+    approval_max_pending: int = Field(default=200, ge=1, le=10_000)
 
     tool_workspace_root: str = "."
     tool_allowed_commands: str = "git,python,pytest,uv,ruff"

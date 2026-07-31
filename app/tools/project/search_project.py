@@ -18,6 +18,17 @@ class SearchProjectTool(ITool):
     description = (
         "Search text in project files while skipping protected and ignored directories"
     )
+    read_only = True
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "minLength": 1},
+            "path": {"type": "string", "default": "."},
+            "max_results": {"type": "integer", "minimum": 1, "maximum": 100},
+        },
+        "required": ["query"],
+        "additionalProperties": False,
+    }
 
     def __init__(
         self,
@@ -35,8 +46,14 @@ class SearchProjectTool(ITool):
         max_results = kwargs.get("max_results", self.max_results)
         if not isinstance(query, str) or not query:
             raise ToolInputError("Search query is required")
-        if not isinstance(max_results, int) or max_results <= 0:
-            raise ToolInputError("max_results must be a positive integer")
+        if (
+            not isinstance(max_results, int)
+            or max_results <= 0
+            or max_results > self.max_results
+        ):
+            raise ToolInputError(
+                f"max_results must be an integer from 1 to {self.max_results}"
+            )
 
         root = self.policy.resolve(raw_path, must_exist=True)
         if not root.is_dir():

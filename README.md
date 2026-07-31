@@ -1,8 +1,8 @@
-# Ai_agentV1
+# AI Agent Worker
 
 Локальный каркас AI-агента на FastAPI с отдельным orchestration layer, LM Studio как текущим LLM backend, опциональной локальной памятью и безопасным набором инструментов для работы с проектом.
 
-Проект сейчас находится на стадии foundation: основной request pipeline уже собран, интерфейсы отделены от реализаций, а инструменты зарегистрированы через общий registry. Planner пока делает один LLM-шаг и еще не строит полноценный многошаговый tool-calling loop.
+Проект сейчас находится на стадии foundation: основной request pipeline уже собран, интерфейсы отделены от реализаций, а инструменты зарегистрированы через общий registry. Один LLM-шаг Planner выполняется через ограниченный tool-calling loop с безопасным автоматическим запуском только read-only tools.
 
 ## Что уже есть
 
@@ -14,6 +14,7 @@
 - Абстракция памяти `IMemoryService`, `NoOpMemoryService` по умолчанию и JSONL backend при включении.
 - Фильтр чувствительных данных перед сохранением памяти.
 - Tool registry и безопасные tools для файлов, поиска по проекту, read-only git и ограниченного запуска команд.
+- Типизированные `LLMResponse`, `ToolCall`, `ToolResult`, JSON Schema tools и ограниченный LLM-driven execution loop.
 - Code verifier для coding-route при `metadata.verify_code=true`.
 - Тесты для API, роутинга, инструментов, памяти, ошибок, настроек и верификации.
 
@@ -29,10 +30,10 @@ app/
   errors.py                       # AppError и доменные ошибки
   orchestrator/
     core.py                       # основной pipeline обработки запроса
+    approval/store.py             # одноразовые pending approvals с TTL
     context/builder.py            # история сессии + recalled memory + system prompt
     execution/tool_dispatcher.py  # выполнение tool steps через registry
-    planning/planner.py           # активный planner, пока один LLM-шаг
-    planning/simple.py            # экспериментальный scaffold, не активный runtime
+    planning/planner.py           # активный planner, формирует LLM-шаг
     routing/router.py             # simple route: general/architecture/coding/research
     session/manager.py            # in-memory session state
     synthesis/result_synthesizer.py
@@ -58,6 +59,8 @@ app/
 
 docs/
   FOUNDATION_DECISIONS.md         # исторические архитектурные решения v0
+  PROJECT_PLAN.md                 # генеральная дорожная карта до создания contracts repo
+  PROJECT_STATE.md                # текущее состояние, следующий шаг и известные gaps
 tests/                            # pytest-набор по текущим модулям
 ```
 
@@ -77,14 +80,18 @@ POST /api/v1/chat
        - последние сообщения сессии
        - recalled memory, если backend включен
   -> Planner.make_plan()
-  -> LLMProvider.chat()
+  -> bounded agent loop
+       - LLMProvider.chat(tools=..., tool_choice="auto")
+       - read-only tool calls через ToolDispatcher
+       - tool results обратно в LLM по tool_call_id
+       - stop/max_steps/max_tool_calls/deadline/duplicate protection
   -> Verifier.verify()
   -> optional CodeVerifier.verify(), если route=coding и metadata.verify_code=true
   -> memory save, если включена память и данные не чувствительные
   -> ResultSynthesizer.synthesize()
 ```
 
-Важно: `ToolDispatcher` и tools уже подключены, но активный `Planner` пока не выбирает инструменты автоматически. Это следующий крупный шаг.
+Автоматически выполняются только tools с `read_only=true`. `write_file`, `run_command` и любые новые mutating tools по безопасному умолчанию сначала возвращают `approval_required` и выполняются только после отдельного подтверждённого запроса той же сессии.
 
 ## Инструменты
 
@@ -105,7 +112,8 @@ POST /api/v1/chat
 - закрыт доступ к `.env`, `.git`, `.venv`, `venv`, cache/build директориям и `node_modules`;
 - `run_command` не использует shell и блокирует shell operators;
 - git-инструменты read-only;
-- фактически разрешенные command patterns сейчас ограничены `git status/diff/log`, `uv run pytest -q`, `uv run python -m compileall app tests` и `ruff check .`.
+- mutating tools не выполняются автоматически и возвращают `approval_required`;
+- фактически разрешенные command patterns сейчас ограничены `git status/diff/log`, `uv run pytest -q`, `uv run python -m compileall app tests` и `uv run ruff check .`.
 
 ## Запуск
 
@@ -167,10 +175,33 @@ Invoke-RestMethod `
 | `MEMORY_FILE_PATH` | `data/memory/interactions.jsonl` | JSONL-файл памяти. |
 | `SESSION_MAX_SESSIONS` | `200` | Максимум in-memory сессий. |
 | `SESSION_MAX_MESSAGES` | `50` | Максимум сообщений в истории сессии. |
+| `AGENT_MAX_STEPS` | `6` | Максимум LLM-turns в одном execution loop. |
+| `AGENT_MAX_TOOL_CALLS` | `10` | Общий лимит запрошенных tool calls. |
+| `AGENT_TIMEOUT_SECONDS` | `120` | Общий deadline одного execution loop. |
+| `APPROVAL_TTL_SECONDS` | `300` | Срок действия ожидающего подтверждения mutating tool. |
+| `APPROVAL_MAX_PENDING` | `200` | Максимум ожидающих подтверждений в памяти процесса. |
 | `TOOL_WORKSPACE_ROOT` | `.` | Корень, внутри которого работают tools. |
 | `TOOL_MAX_FILE_BYTES` | `200000` | Лимит чтения/записи файлов и поиска. |
 | `TOOL_COMMAND_TIMEOUT_SECONDS` | `30` | Таймаут команд tools и code verifier. |
 | `TOOL_MAX_OUTPUT_CHARS` | `20000` | Лимит stdout/stderr в tool result. |
+
+## Подтверждение mutating tools
+
+Когда модель запрашивает `write_file`, `run_command` или другой tool без `read_only=true`, соответствующий `ExecutionStep` получает статус `approval_required` и серверный `payload.approval_id`. Сам tool на этом этапе не выполняется.
+
+Для подтверждения отправьте новый запрос в ту же сессию:
+
+```json
+{
+  "message": "Подтверждаю ожидающее изменение",
+  "session_id": "тот-же-session-id",
+  "metadata": {
+    "approve_tool_call_id": "approval-id-из-предыдущего-ответа"
+  }
+}
+```
+
+Сервер выполняет сохраненную копию исходного `ToolCall`: передать новые аргументы через metadata нельзя. Подтверждение одноразовое, привязано к сессии и ограничено по TTL. Чужой `session_id`, повторное или просроченное подтверждение отклоняются до выполнения tool.
 
 ## Память
 
@@ -213,10 +244,8 @@ Recalled memory передается модели как недоверенны�
 ```text
 uv run python -m compileall app tests
 uv run pytest -q
-ruff check .
+uv run ruff check .
 ```
-
-`ruff check .` пропускается, если executable `ruff` не найден.
 
 ## Тесты
 
@@ -228,21 +257,13 @@ uv run pytest -q
 
 ```powershell
 uv run python -m compileall app tests
-ruff check .
+uv run ruff check .
 ```
 
 ## Что планируется дальше
 
-Ближайший порядок работ:
-
-1. Расширить `Planner` до tool-calling loop: выбор tools, выполнение, передача результатов обратно в модель, stop conditions и защита от бесконечных циклов.
-2. Описать tool schemas для модели и сделать единый формат tool step, чтобы LLM могла запрашивать `read_file`, `search_project`, `git_diff` и другие инструменты предсказуемо.
-3. Собрать coding workflow: анализ запроса, чтение файлов, подготовка patch, запуск verifier, итоговый diff summary.
-4. Сделать persistent session store вместо только in-memory history.
-5. Улучшить memory backend: нормальный project/user scope, более точный retrieval, подготовка к embeddings/vector store или mem0 за тем же `IMemoryService`.
-6. Добавить дополнительные LLM providers: Ollama, vLLM или общий OpenAI-compatible provider вместо жесткой привязки к LM Studio.
-7. Добавить CLI-клиент рядом с API для локального использования без ручных HTTP-запросов.
-8. Вынести GUI/desktop worker в отдельный adapter, не смешивая его с ядром orchestrator.
-9. Усилить observability: метрики, structured tracing по шагам planner/tools/LLM и e2e-тесты на полный сценарий.
-
-Текущий главный фокус - не добавлять новые возможности прямо в core, а нарастить их через интерфейсы: `ILLMProvider`, `IMemoryService`, `ITool` и orchestration pipeline.
+Актуальный порядок работ и критерии готовности хранятся в
+[`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md). Полная дорожная карта находится в
+[`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md). После появления отдельного
+`ai-agent-contracts` эти документы становятся каноническими в нём, а worker
+закрепляет совместимую версию contracts.

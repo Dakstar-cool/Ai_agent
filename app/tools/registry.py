@@ -1,3 +1,5 @@
+from typing import Any
+
 from app.tools.base import ITool
 
 
@@ -15,3 +17,6 @@ class ToolRegistry:
 
     def list_tools(self) -> list[str]:
         return sorted(self._tools.keys())
+
+    def definitions(self) -> list[dict[str, Any]]:
+        return [self._tools[name].definition() for name in self.list_tools()]

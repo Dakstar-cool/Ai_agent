@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +16,7 @@ class CodeVerifier:
         self.root_dir = Path(root_dir).resolve()
         self.tool = RunCommandTool(
             root_dir=self.root_dir,
-            allowed_commands={"uv", "ruff"},
+            allowed_commands={"uv"},
             timeout_seconds=timeout_seconds,
             max_output_chars=max_output_chars,
         )
@@ -29,20 +28,8 @@ class CodeVerifier:
                 ["uv", "run", "python", "-m", "compileall", "app", "tests"],
             ),
             await self._run_check("pytest", ["uv", "run", "pytest", "-q"]),
+            await self._run_check("ruff", ["uv", "run", "ruff", "check", "."]),
         ]
-
-        if shutil.which("ruff"):
-            checks.append(await self._run_check("ruff", ["ruff", "check", "."]))
-        else:
-            checks.append(
-                {
-                    "name": "ruff",
-                    "ok": True,
-                    "skipped": True,
-                    "reason": "ruff executable not found",
-                    "command": ["ruff", "check", "."],
-                }
-            )
 
         return {"ok": all(check["ok"] for check in checks), "checks": checks}
 

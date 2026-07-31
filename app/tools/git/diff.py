@@ -11,6 +11,14 @@ from app.tools.path_safety import WorkspacePathPolicy
 class GitDiffTool(ITool):
     name = "git_diff"
     description = "Run read-only git diff"
+    read_only = True
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "Optional workspace-relative path"}
+        },
+        "additionalProperties": False,
+    }
 
     def __init__(
         self,

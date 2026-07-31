@@ -11,6 +11,20 @@ from app.tools.path_safety import resolve_workspace_path
 class WriteFileTool(ITool):
     name = "write_file"
     description = "Write text to a UTF-8 file"
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "Workspace-relative file path"},
+            "content": {"type": "string"},
+            "mode": {
+                "type": "string",
+                "enum": ["create", "overwrite"],
+                "default": "create",
+            },
+        },
+        "required": ["path", "content"],
+        "additionalProperties": False,
+    }
 
     def __init__(self, root_dir: str | Path, max_bytes: int = 200_000) -> None:
         self.root_dir = Path(root_dir).resolve()

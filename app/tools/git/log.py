@@ -11,6 +11,19 @@ from app.tools.git._runner import GitReadOnlyRunner
 class GitLogTool(ITool):
     name = "git_log"
     description = "Run read-only git log"
+    read_only = True
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "max_count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 20,
+            }
+        },
+        "additionalProperties": False,
+    }
 
     def __init__(
         self,

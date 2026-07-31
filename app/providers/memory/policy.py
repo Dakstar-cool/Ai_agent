@@ -13,6 +13,8 @@ _SENSITIVE_RE = re.compile(
     r"\btoken\b|"
     r"\baccess_token\b|"
     r"\brefresh_token\b|"
+    r"\bapproval_id\b|"
+    r"\bapprove_tool_call_id\b|"
     r"authorization\s*:|"
     r"bearer\s+\S+|"
     r"\bsecret\b|"

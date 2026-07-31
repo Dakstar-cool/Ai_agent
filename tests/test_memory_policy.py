@@ -45,6 +45,7 @@ def test_contains_sensitive_data_detects_secret_patterns() -> None:
     assert contains_sensitive_data("API_KEY=abc") is True
     assert contains_sensitive_data({"nested": {"access_token": "abc"}}) is True
     assert contains_sensitive_data("plain project note") is False
+    assert contains_sensitive_data({"approve_tool_call_id": "approval-capability"}) is True
 
 
 @pytest.mark.asyncio
