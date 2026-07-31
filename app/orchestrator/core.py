@@ -461,6 +461,7 @@ class Orchestrator:
         tool_result = await self.dispatcher.execute_call(
             pending.tool_call,
             approved_mutation=True,
+            mutation_preview=pending.mutation_preview,
         )
         tool_result = tool_result.model_copy(
             update={
@@ -528,16 +529,24 @@ class Orchestrator:
         tool_call: ToolCall,
         tool_result: ToolResult,
     ) -> ToolResult:
+        mutation_preview = tool_result.output.get("mutation_preview")
         pending = self.approval_store.create(
             session_id=session_id,
             tool_call=tool_call,
             route=route,
             project_path=project_path,
+            mutation_preview=(
+                mutation_preview if isinstance(mutation_preview, dict) else None
+            ),
         )
+        output = dict(tool_result.output)
+        output.pop("mutation_preview", None)
+        if pending.mutation_preview is not None:
+            output["mutation_preview"] = pending.mutation_preview
         return tool_result.model_copy(
             update={
                 "output": {
-                    **tool_result.output,
+                    **output,
                     "approval_id": pending.approval_id,
                     "preview_hash": pending.approval_hash,
                     "expires_in_seconds": round(

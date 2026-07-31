@@ -24,6 +24,7 @@ class PendingApproval:
     route: str
     project_path: str | None
     approval_hash: str
+    mutation_preview: dict[str, object] | None
     created_at: float
     expires_at: float
 
@@ -34,7 +35,7 @@ class PendingApprovalStore:
         *,
         ttl_seconds: float = 300.0,
         max_pending: int = 200,
-        clock: Callable[[], float] = time.monotonic,
+        clock: Callable[[], float] = time.time,
     ) -> None:
         self.ttl_seconds = max(0.1, ttl_seconds)
         self.max_pending = max(1, max_pending)
@@ -49,11 +50,11 @@ class PendingApprovalStore:
         route: str,
         project_path: str | None,
         run_id: str | None = None,
+        mutation_preview: dict[str, object] | None = None,
     ) -> PendingApproval:
         now = self._clock()
         self._remove_expired(now)
         signature = self._signature(tool_call)
-        approval_hash = self._approval_hash(tool_call)
 
         for pending in self._pending.values():
             if (
@@ -67,16 +68,29 @@ class PendingApprovalStore:
         if len(self._pending) >= self.max_pending:
             self._pending.popitem(last=False)
 
+        approval_id = uuid4().hex
+        expires_at = now + self.ttl_seconds
+        finalized_preview = self._finalize_mutation_preview(
+            mutation_preview,
+            approval_id=approval_id,
+            expires_at=expires_at,
+        )
+        approval_hash = (
+            str(finalized_preview["preview_hash"])
+            if finalized_preview is not None
+            else self._approval_hash(tool_call)
+        )
         pending = PendingApproval(
-            approval_id=uuid4().hex,
+            approval_id=approval_id,
             run_id=run_id,
             session_id=session_id,
             tool_call=tool_call.model_copy(deep=True),
             route=route,
             project_path=project_path,
             approval_hash=approval_hash,
+            mutation_preview=finalized_preview,
             created_at=now,
-            expires_at=now + self.ttl_seconds,
+            expires_at=expires_at,
         )
         self._pending[pending.approval_id] = pending
         return pending
@@ -168,6 +182,30 @@ class PendingApprovalStore:
         )
         return sha256(canonical.encode("utf-8")).hexdigest()
 
+    def _finalize_mutation_preview(
+        self,
+        preview: dict[str, object] | None,
+        *,
+        approval_id: str,
+        expires_at: float,
+    ) -> dict[str, object] | None:
+        if preview is None:
+            return None
+        finalized: dict[str, object] = {
+            "schema_version": "0.1.0",
+            "preview_id": approval_id,
+            **preview,
+            "expires_at": datetime.fromtimestamp(expires_at, UTC).isoformat(),
+        }
+        canonical = json.dumps(
+            finalized,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        finalized["preview_hash"] = sha256(canonical.encode("utf-8")).hexdigest()
+        return finalized
+
 
 class SQLitePendingApprovalStore(PendingApprovalStore):
     def __init__(
@@ -193,19 +231,33 @@ class SQLitePendingApprovalStore(PendingApprovalStore):
         route: str,
         project_path: str | None,
         run_id: str | None = None,
+        mutation_preview: dict[str, object] | None = None,
     ) -> PendingApproval:
         now = self._clock()
         created_at = datetime.fromtimestamp(now, UTC)
+        approval_id = uuid4().hex
+        expires_at = now + self.ttl_seconds
+        finalized_preview = self._finalize_mutation_preview(
+            mutation_preview,
+            approval_id=approval_id,
+            expires_at=expires_at,
+        )
+        approval_hash = (
+            str(finalized_preview["preview_hash"])
+            if finalized_preview is not None
+            else self._approval_hash(tool_call)
+        )
         record = self.state_store.create_approval_record(
-            approval_id=uuid4().hex,
+            approval_id=approval_id,
             run_id=run_id,
             session_id=session_id,
             tool_call=tool_call.model_dump(mode="json"),
             route=route,
             project_path=project_path,
-            approval_hash=self._approval_hash(tool_call),
+            approval_hash=approval_hash,
+            mutation_preview=finalized_preview,
             created_at=created_at,
-            expires_at=datetime.fromtimestamp(now + self.ttl_seconds, UTC),
+            expires_at=datetime.fromtimestamp(expires_at, UTC),
             max_pending=self.max_pending,
         )
         return self._from_record(record)
@@ -275,6 +327,11 @@ class SQLitePendingApprovalStore(PendingApprovalStore):
                 else None
             ),
             approval_hash=str(record["approval_hash"]),
+            mutation_preview=(
+                dict(record["mutation_preview"])
+                if isinstance(record["mutation_preview"], dict)
+                else None
+            ),
             created_at=created_at.timestamp(),
             expires_at=expires_at.timestamp(),
         )

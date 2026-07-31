@@ -30,7 +30,11 @@ class ToolDispatcher:
         }
 
     async def execute_call(
-        self, tool_call: ToolCall, *, approved_mutation: bool = False
+        self,
+        tool_call: ToolCall,
+        *,
+        approved_mutation: bool = False,
+        mutation_preview: dict[str, Any] | None = None,
     ) -> ToolResult:
         try:
             tool = self.registry.get(tool_call.name)
@@ -48,6 +52,23 @@ class ToolDispatcher:
             )
 
         if not tool.read_only and not approved_mutation:
+            preview = getattr(tool, "preview", None)
+            mutation_preview: dict[str, Any] | None = None
+            if preview is not None:
+                try:
+                    mutation_preview = await preview(**tool_call.arguments)
+                except AppError as exc:
+                    return ToolResult(
+                        tool_call_id=tool_call.id,
+                        name=tool_call.name,
+                        status="failed",
+                        output={
+                            "error": {
+                                "code": exc.code,
+                                "message": "Tool rejected the mutation preview",
+                            }
+                        },
+                    )
             return ToolResult(
                 tool_call_id=tool_call.id,
                 name=tool_call.name,
@@ -56,12 +77,29 @@ class ToolDispatcher:
                     "error": {
                         "code": "approval_required",
                         "message": "This tool can mutate state and requires explicit approval",
-                    }
+                    },
+                    **(
+                        {"mutation_preview": mutation_preview}
+                        if mutation_preview is not None
+                        else {}
+                    ),
                 },
             )
 
         try:
-            output = await tool.run(**tool_call.arguments)
+            apply_preview = getattr(tool, "apply_preview", None)
+            if approved_mutation and apply_preview:
+                if mutation_preview is None:
+                    raise AppError(
+                        message="Mutation preview is required for this tool",
+                        code="mutation_preview_required",
+                        status_code=409,
+                    )
+                output = await apply_preview(
+                    mutation_preview=mutation_preview, **tool_call.arguments
+                )
+            else:
+                output = await tool.run(**tool_call.arguments)
         except AppError as exc:
             logger.warning(
                 "tool_call_rejected tool=%s code=%s", tool_call.name, exc.code

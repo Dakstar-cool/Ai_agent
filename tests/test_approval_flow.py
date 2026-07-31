@@ -32,7 +32,15 @@ class SequencedProvider:
         return self.responses.pop(0)
 
 
-def _provider(*, path: str = "approved.txt", content: str = "original"):
+def _provider(
+    *,
+    path: str = "approved.txt",
+    content: str = "original",
+    mode: str | None = None,
+):
+    arguments = {"path": path, "content": content}
+    if mode is not None:
+        arguments["mode"] = mode
     return SequencedProvider(
         [
             LLMResponse(
@@ -40,7 +48,7 @@ def _provider(*, path: str = "approved.txt", content: str = "original"):
                     ToolCall(
                         id="write-call-1",
                         name="write_file",
-                        arguments={"path": path, "content": content},
+                        arguments=arguments,
                     )
                 ]
             ),
@@ -73,6 +81,10 @@ def _approval_id(response) -> str:
     return approval_step.payload["approval_id"]
 
 
+def _approval_step(response):
+    return next(step for step in response.steps if step.status == "approval_required")
+
+
 @pytest.mark.asyncio
 async def test_approved_write_executes_once_with_stored_arguments(tmp_path) -> None:
     provider = _provider()
@@ -82,9 +94,13 @@ async def test_approved_write_executes_once_with_stored_arguments(tmp_path) -> N
         ChatRequest(message="fix code by writing a file", session_id="session-a")
     )
     approval_id = _approval_id(initial)
+    preview = _approval_step(initial).payload["mutation_preview"]
 
     assert not (tmp_path / "approved.txt").exists()
     assert initial.route == "coding"
+    assert preview["operation"] == "create"
+    assert preview["path"] == "approved.txt"
+    assert preview["preview_hash"] == _approval_step(initial).payload["preview_hash"]
 
     approved = await orchestrator.handle(
         ChatRequest(
@@ -204,6 +220,32 @@ async def test_invalid_approval_id_is_rejected_before_llm_call(tmp_path) -> None
 
     assert invalid_error.value.code == "invalid_approval_request"
     assert provider.calls == []
+
+
+@pytest.mark.asyncio
+async def test_approved_write_rejects_stale_file_state(tmp_path) -> None:
+    path = tmp_path / "stale.txt"
+    path.write_text("base", encoding="utf-8")
+    provider = _provider(path="stale.txt", content="approved", mode="overwrite")
+    orchestrator = _orchestrator(tmp_path, provider)
+    initial = await orchestrator.handle(
+        ChatRequest(message="fix code", session_id="stale-session")
+    )
+    approval_id = _approval_id(initial)
+    path.write_text("changed elsewhere", encoding="utf-8")
+
+    response = await orchestrator.handle(
+        ChatRequest(
+            message="approve",
+            session_id="stale-session",
+            metadata={"approve_tool_call_id": approval_id},
+        )
+    )
+
+    write_step = next(step for step in response.steps if step.name == "write_file")
+    assert write_step.status == "failed"
+    assert write_step.payload["error"]["code"] == "stale_preview"
+    assert path.read_text(encoding="utf-8") == "changed elsewhere"
 
 
 def test_sqlite_approval_survives_store_restart(tmp_path) -> None:

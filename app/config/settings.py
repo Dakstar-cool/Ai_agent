@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     session_max_sessions: int = 200
     session_max_messages: int = 50
     state_db_path: str | None = None
+    task_worktree_root: str | None = None
     run_event_poll_interval_seconds: float = Field(default=0.1, gt=0, le=5)
 
     agent_max_steps: int = Field(default=6, ge=1, le=50)
@@ -85,6 +86,11 @@ class Settings(BaseSettings):
             else Path.home() / ".local" / "state"
         )
         return base / "ai-agent" / "worker.sqlite3"
+
+    def resolve_task_worktree_root(self) -> Path:
+        if self.task_worktree_root and self.task_worktree_root.strip():
+            return self.resolve_project_path(self.task_worktree_root)
+        return self.resolve_state_db_path().parent / "worktrees"
 
     def allowed_tool_commands(self) -> set[str]:
         return {

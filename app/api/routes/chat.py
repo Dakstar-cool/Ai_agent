@@ -7,6 +7,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from app.config.settings import get_settings
+from app.coding.worktree import TaskWorktreeService
 from app.errors import AppError
 from app.orchestrator.approval.store import SQLitePendingApprovalStore
 from app.orchestrator.core import Orchestrator
@@ -15,11 +16,17 @@ from app.orchestrator.verification.code_verifier import CodeVerifier
 from app.providers.llm.lmstudio import LMStudioProvider
 from app.providers.memory.factory import build_memory_service
 from app.schemas.chat import ChatRequest, ChatResponse
-from app.state.runtime import get_default_workspace, get_state_store
+from app.state.runtime import (
+    get_default_workspace,
+    get_state_store,
+    workspace_id_for_path,
+)
 from app.state.store import SQLiteStateStore
 from app.tools.files.read_file import ReadFileTool
 from app.tools.files.write_file import WriteFileTool
 from app.tools.git.diff import GitDiffTool
+from app.tools.git.create_worktree import CreateTaskWorktreeTool
+from app.tools.git.local_commit import LocalCommitTool
 from app.tools.git.log import GitLogTool
 from app.tools.git.status import GitStatusTool
 from app.tools.project.scan_project import ScanProjectTool
@@ -65,6 +72,12 @@ def _build_orchestrator(
         model=settings.lmstudio_model,
     )
     memory_service = build_memory_service(settings)
+    worktree_service = TaskWorktreeService(
+        state_store=state_store,
+        worktree_root=settings.resolve_task_worktree_root(),
+        command_timeout_seconds=settings.tool_command_timeout_seconds,
+        max_output_chars=settings.tool_max_output_chars,
+    )
     registry = ToolRegistry()
     registry.register(
         ReadFileTool(root_dir=tool_root, max_bytes=settings.tool_max_file_bytes)
@@ -105,6 +118,19 @@ def _build_orchestrator(
             root_dir=tool_root,
             timeout_seconds=settings.tool_command_timeout_seconds,
             max_output_chars=settings.tool_max_output_chars,
+        )
+    )
+    workspace_id = workspace_id_for_path(tool_root)
+    registry.register(
+        CreateTaskWorktreeTool(
+            service=worktree_service,
+            source_workspace_id=workspace_id,
+        )
+    )
+    registry.register(
+        LocalCommitTool(
+            service=worktree_service,
+            workspace_id=workspace_id,
         )
     )
 

@@ -1,3 +1,3 @@
-from app.runs.models import RunEventRecord, RunRecord, RunState
+from app.runs.models import RunEventRecord, RunRecord, RunState, TaskWorktreeRecord
 
-__all__ = ["RunEventRecord", "RunRecord", "RunState"]
+__all__ = ["RunEventRecord", "RunRecord", "RunState", "TaskWorktreeRecord"]

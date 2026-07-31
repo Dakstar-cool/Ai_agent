@@ -4,7 +4,7 @@
 
 ## Текущий milestone
 
-`M2 — persistent worker и Run API` реализован; следующий milestone — `M3`.
+`M3 — безопасный coding workflow` реализован; следующий milestone — `M4`.
 Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio smoke.
 
 ## Завершено
@@ -28,6 +28,16 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
 - `/chat` переведён на синхронный adapter поверх persistent RunService;
 - failed CodeVerifier теперь меняет reply, Run state и memory policy;
 - полный M2 gate: 87 tests, compileall и ruff прошли 2026-07-31.
+- M3: coding-задачи могут выполняться в отдельной ветке `agent/<task-id>` и worktree
+  от выбранного committed SHA, не изменяя dirty исходный workspace;
+- `write_file` формирует deterministic `MutationPreview` с unified diff и SHA-256,
+  а approval связан с `preview_hash` и повторной проверкой исходного файла;
+- добавлены stale-preview защита, атомарная запись, worktree report, verification и
+  optional local commit выбранных путей;
+- безопасные git tools поддерживают только создание task worktree и локальный commit;
+  push/reset/clean/delete отсутствуют;
+- fake-provider E2E покрывает путь coding prompt → preview → approval → write → verify
+  и доказывает изоляцию исходного workspace.
 
 ## Незакрытый release gate M0
 
@@ -40,20 +50,19 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
 
 ## Следующий milestone
 
-`M3 — безопасный coding workflow`:
+`M4 — policy engine и autonomy modes`:
 
-1. task branch/worktree от выбранного committed SHA;
-2. deterministic `MutationPreview` с old/new hashes и unified diff;
-3. approval по `preview_hash` и stale-state check перед atomic write;
-4. verification report, final diff stat и optional local commit;
-5. безопасные git tools без push/reset/clean/delete.
+1. типизированный `RunPolicy` для safe/supervised/autonomous;
+2. hard deny перед любыми task grants и requested mode;
+3. TTL, path globs, allowed tools, write/command limits и network flag;
+4. audit events и post-action hashes для выполненных мутаций;
+5. policy-тесты, доказывающие, что autonomous не обходит hard deny.
 
 ## Известные gaps
 
-- approval подтверждает сохранённый tool call и interim approval hash, но ещё не использует
-  deterministic mutation preview, `preview_hash` и stale-state check;
-- coding выполняется без обязательного task worktree;
 - policy engine, desktop, hub, outbox и handoff ещё не реализованы;
+- Run API пока ожидает, что desktop сначала явно создаст task worktree, а затем запустит
+  coding Run по его `worktree_workspace_id`; единый high-level create-task endpoint ещё не добавлен;
 - SQLite operations пока синхронные и рассчитаны на local single-worker workload;
 - fine-grained LLM/tool events записываются после завершения orchestrator response,
   поэтому token streaming появится вместе с desktop integration;

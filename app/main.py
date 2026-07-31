@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 import app.api.routes.runs as run_routes
 from app.api.routes.chat import close_orchestrator
 from app.api.routes.chat import router as chat_router
+from app.api.routes.coding import router as coding_router
 from app.config.settings import get_settings
 from app.contracts import PROTOCOL_VERSION
 from app.errors import AppError
@@ -63,6 +64,7 @@ def create_app() -> FastAPI:
     app.state.rate_limit_state = {}
     app.include_router(chat_router, prefix="/api/v1")
     app.include_router(run_routes.router, prefix="/api/v1")
+    app.include_router(coding_router, prefix="/api/v1")
 
     @app.middleware("http")
     async def add_request_context(request: Request, call_next):
@@ -164,7 +166,7 @@ def create_app() -> FastAPI:
             "status": "ok",
             "env": settings.app_env,
             "component": "ai-agent-worker",
-            "version": "0.3.0",
+            "version": "0.4.0",
             "protocol_version": PROTOCOL_VERSION,
         }
 

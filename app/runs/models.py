@@ -78,3 +78,14 @@ class WorkspaceRecord:
     root_path: str
     created_at: datetime
     updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class TaskWorktreeRecord:
+    task_id: str
+    source_workspace_id: str
+    worktree_workspace_id: str
+    branch: str
+    base_sha: str
+    path: str
+    created_at: datetime

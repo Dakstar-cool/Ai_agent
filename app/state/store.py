@@ -14,11 +14,12 @@ from app.runs.models import (
     RunEventRecord,
     RunRecord,
     RunState,
+    TaskWorktreeRecord,
     WorkspaceRecord,
 )
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 3
 
 
 def utc_now() -> datetime:
@@ -114,12 +115,23 @@ class SQLiteStateStore:
                         route TEXT NOT NULL,
                         project_path TEXT,
                         approval_hash TEXT NOT NULL,
+                        mutation_preview_json TEXT,
                         state TEXT NOT NULL CHECK (
                             state IN ('pending', 'consumed', 'rejected', 'expired')
                         ),
                         created_at TEXT NOT NULL,
                         expires_at TEXT NOT NULL,
                         decided_at TEXT
+                    );
+
+                    CREATE TABLE IF NOT EXISTS task_worktrees (
+                        task_id TEXT PRIMARY KEY,
+                        source_workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+                        worktree_workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+                        branch TEXT NOT NULL UNIQUE,
+                        base_sha TEXT NOT NULL,
+                        path TEXT NOT NULL UNIQUE,
+                        created_at TEXT NOT NULL
                     );
 
                     CREATE INDEX IF NOT EXISTS idx_session_messages_session_sequence
@@ -131,6 +143,14 @@ class SQLiteStateStore:
                         ON approvals(session_id, state);
                     """
                 )
+                approval_columns = {
+                    row["name"]
+                    for row in connection.execute("PRAGMA table_info(approvals)")
+                }
+                if "mutation_preview_json" not in approval_columns:
+                    connection.execute(
+                        "ALTER TABLE approvals ADD COLUMN mutation_preview_json TEXT"
+                    )
                 connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
             self._initialized = True
 
@@ -192,6 +212,57 @@ class SQLiteStateStore:
                 "SELECT * FROM workspaces ORDER BY created_at, id"
             ).fetchall()
         return [self._workspace_from_row(row) for row in rows]
+
+    def save_task_worktree(
+        self,
+        *,
+        task_id: str,
+        source_workspace_id: str,
+        worktree_workspace_id: str,
+        branch: str,
+        base_sha: str,
+        path: Path,
+    ) -> TaskWorktreeRecord:
+        self.initialize()
+        created_at = utc_now().isoformat()
+        try:
+            with self._connect() as connection:
+                connection.execute(
+                    """
+                    INSERT INTO task_worktrees(
+                        task_id, source_workspace_id, worktree_workspace_id,
+                        branch, base_sha, path, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        task_id,
+                        source_workspace_id,
+                        worktree_workspace_id,
+                        branch,
+                        base_sha,
+                        str(path.resolve()),
+                        created_at,
+                    ),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise AppError(
+                message="Task worktree is already registered",
+                code="task_worktree_exists",
+                status_code=409,
+                details={"task_id": task_id},
+            ) from exc
+        record = self.get_task_worktree(task_id)
+        if record is None:
+            raise RuntimeError("Task worktree registration did not persist")
+        return record
+
+    def get_task_worktree(self, task_id: str) -> TaskWorktreeRecord | None:
+        self.initialize()
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM task_worktrees WHERE task_id=?", (task_id,)
+            ).fetchone()
+        return self._task_worktree_from_row(row) if row is not None else None
 
     def get_or_create_session(self, session_id: str) -> list[dict[str, str]]:
         self.initialize()
@@ -452,6 +523,7 @@ class SQLiteStateStore:
         route: str,
         project_path: str | None,
         approval_hash: str,
+        mutation_preview: dict[str, object] | None,
         created_at: datetime,
         expires_at: datetime,
         max_pending: int,
@@ -495,8 +567,8 @@ class SQLiteStateStore:
                 """
                 INSERT INTO approvals(
                     id, run_id, session_id, tool_call_json, route, project_path,
-                    approval_hash, state, created_at, expires_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                    approval_hash, mutation_preview_json, state, created_at, expires_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
                 """,
                 (
                     approval_id,
@@ -506,6 +578,7 @@ class SQLiteStateStore:
                     route,
                     project_path,
                     approval_hash,
+                    _dump(mutation_preview) if mutation_preview is not None else None,
                     created_at.isoformat(),
                     expires_at.isoformat(),
                 ),
@@ -684,6 +757,17 @@ class SQLiteStateStore:
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
 
+    def _task_worktree_from_row(self, row: sqlite3.Row) -> TaskWorktreeRecord:
+        return TaskWorktreeRecord(
+            task_id=row["task_id"],
+            source_workspace_id=row["source_workspace_id"],
+            worktree_workspace_id=row["worktree_workspace_id"],
+            branch=row["branch"],
+            base_sha=row["base_sha"],
+            path=row["path"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+        )
+
     def _approval_from_row(self, row: sqlite3.Row) -> dict[str, Any]:
         tool_call = _load_object(row["tool_call_json"])
         if tool_call is None:
@@ -696,6 +780,7 @@ class SQLiteStateStore:
             "route": row["route"],
             "project_path": row["project_path"],
             "approval_hash": row["approval_hash"],
+            "mutation_preview": _load_object(row["mutation_preview_json"]),
             "state": row["state"],
             "created_at": datetime.fromisoformat(row["created_at"]),
             "expires_at": datetime.fromisoformat(row["expires_at"]),

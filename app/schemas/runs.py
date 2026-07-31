@@ -7,7 +7,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.runs.models import RunEventRecord, RunRecord, RunState, WorkspaceRecord
+from app.runs.models import (
+    RunEventRecord,
+    RunRecord,
+    RunState,
+    TaskWorktreeRecord,
+    WorkspaceRecord,
+)
 from app.schemas.chat import MAX_MESSAGE_LENGTH, MAX_METADATA_BYTES
 
 
@@ -104,3 +110,54 @@ class ApprovalDecisionRequest(BaseModel):
     preview_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
     decided_at: datetime
     actor_id: str | None = Field(default=None, max_length=200)
+
+
+class CreateTaskWorktreeRequest(BaseModel):
+    schema_version: Literal["0.1.0"]
+    task_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+    source_workspace_id: UUID
+    base_sha: str | None = Field(default=None, pattern=r"^[a-fA-F0-9]{7,64}$")
+
+
+class TaskWorktreeResponse(BaseModel):
+    schema_version: Literal["0.1.0"] = "0.1.0"
+    task_id: str
+    source_workspace_id: UUID
+    worktree_workspace_id: UUID
+    branch: str
+    base_sha: str
+    path: str
+    created_at: datetime
+
+    @classmethod
+    def from_record(cls, record: TaskWorktreeRecord) -> "TaskWorktreeResponse":
+        return cls(
+            task_id=record.task_id,
+            source_workspace_id=record.source_workspace_id,
+            worktree_workspace_id=record.worktree_workspace_id,
+            branch=record.branch,
+            base_sha=record.base_sha,
+            path=record.path,
+            created_at=record.created_at,
+        )
+
+
+class CommitTaskWorktreeRequest(BaseModel):
+    schema_version: Literal["0.1.0"]
+    message: str = Field(min_length=1, max_length=200)
+    paths: list[str] = Field(min_length=1, max_length=100)
+
+
+class FinalizeTaskWorktreeRequest(BaseModel):
+    schema_version: Literal["0.1.0"]
+    create_commit: bool = False
+    commit_message: str | None = Field(default=None, min_length=1, max_length=200)
+    paths: list[str] = Field(default_factory=list, max_length=100)
+
+    @model_validator(mode="after")
+    def validate_commit_fields(self) -> "FinalizeTaskWorktreeRequest":
+        if self.create_commit and (self.commit_message is None or not self.paths):
+            raise ValueError(
+                "commit_message and paths are required when create_commit=true"
+            )
+        return self

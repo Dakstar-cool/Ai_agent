@@ -2,7 +2,8 @@
 
 Локальный каркас AI-агента на FastAPI с отдельным orchestration layer, LM Studio как текущим LLM backend, опциональной локальной памятью и безопасным набором инструментов для работы с проектом.
 
-Worker `0.3.0` содержит безопасный tool-calling foundation и persistent Run API.
+Worker `0.4.0` содержит безопасный tool-calling foundation, persistent Run API и
+изолированный coding workflow в task worktree.
 Один LLM-шаг Planner выполняется через ограниченный loop, автоматически запускающий
 только read-only tools. Runs, events, sessions и approvals сохраняются в SQLite/WAL.
 
@@ -23,6 +24,11 @@ Worker `0.3.0` содержит безопасный tool-calling foundation и 
 - State machine `queued/running/waiting_approval/verifying/completed/failed/cancelled`.
 - Append-only `RunEvent`, восстановление timeline после restart и один execution lock
   на workspace.
+- Task branch/worktree от committed SHA без stash/reset исходного workspace.
+- Детерминированный `MutationPreview`, approval по `preview_hash` и stale-state check
+  перед атомарной записью.
+- Verification/diff report и опциональный локальный commit; push, clean, reset и
+  удаление worktree не поддерживаются.
 - Тесты для API, роутинга, инструментов, памяти, ошибок, настроек и верификации.
 
 ## Структура проекта
@@ -124,6 +130,10 @@ GET  /api/v1/runs/{run_id}
 GET  /api/v1/runs/{run_id}/events?after=0
 POST /api/v1/runs/{run_id}/cancel
 POST /api/v1/approvals/{approval_id}/decision
+POST /api/v1/task-worktrees
+GET  /api/v1/task-worktrees/{task_id}/report
+POST /api/v1/task-worktrees/{task_id}/verify
+POST /api/v1/task-worktrees/{task_id}/finalize
 ```
 
 SSE events имеют монотонный `sequence`, поэтому timeline можно восстановить после
@@ -218,6 +228,7 @@ Invoke-RestMethod `
 | `SESSION_MAX_SESSIONS` | `200` | Максимум in-memory сессий. |
 | `SESSION_MAX_MESSAGES` | `50` | Максимум сообщений в истории сессии. |
 | `STATE_DB_PATH` | OS app-data/state | SQLite/WAL с runs, events, sessions и approvals. |
+| `TASK_WORKTREE_ROOT` | OS app-data/worktrees | Изолированные worktrees coding-задач. |
 | `RUN_EVENT_POLL_INTERVAL_SECONDS` | `0.1` | Интервал polling для SSE и sync adapter. |
 | `AGENT_MAX_STEPS` | `6` | Максимум LLM-turns в одном execution loop. |
 | `AGENT_MAX_TOOL_CALLS` | `10` | Общий лимит запрошенных tool calls. |
