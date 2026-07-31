@@ -6,18 +6,18 @@ import json
 import os
 from typing import Any
 
-from app.providers.llm.lmstudio import LMStudioProvider
+from app.providers.llm.ollama import OllamaProvider
 from app.providers.llm.smoke import smoke_tool_provider
 
 
-async def smoke_lmstudio(
+async def smoke_ollama(
     *,
     base_url: str,
     model: str,
     timeout: float,
     max_tokens: int,
 ) -> dict[str, Any]:
-    provider = LMStudioProvider(
+    provider = OllamaProvider(
         base_url=base_url,
         model=model,
         timeout=timeout,
@@ -30,14 +30,16 @@ async def smoke_lmstudio(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Smoke-test a real LM Studio server")
+    parser = argparse.ArgumentParser(description="Smoke-test a real Ollama server")
     parser.add_argument(
         "--base-url",
-        default=os.environ.get("LMSTUDIO_BASE_URL", "http://127.0.0.1:1234/v1"),
+        default=os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
     )
     parser.add_argument(
         "--model",
-        default=os.environ.get("LMSTUDIO_MODEL", "google/gemma-4-e4b"),
+        default=os.environ.get("OLLAMA_MODEL"),
+        required="OLLAMA_MODEL" not in os.environ,
+        help="Loaded tool-capable model name (or set OLLAMA_MODEL)",
     )
     parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--max-output-tokens", type=int, default=128)
@@ -48,7 +50,7 @@ def main() -> int:
     args = parse_args()
     try:
         result = asyncio.run(
-            smoke_lmstudio(
+            smoke_ollama(
                 base_url=args.base_url,
                 model=args.model,
                 timeout=args.timeout,
@@ -59,7 +61,7 @@ def main() -> int:
         print(
             json.dumps(
                 {
-                    "event": "lmstudio_smoke_failed",
+                    "event": "ollama_smoke_failed",
                     "error_type": exc.__class__.__name__,
                 },
                 separators=(",", ":"),
