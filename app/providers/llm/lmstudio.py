@@ -61,6 +61,9 @@ class OpenAICompatibleProvider(ILLMProvider):
         if tools:
             payload["tools"] = tools
             payload["tool_choice"] = kwargs.get("tool_choice", "auto")
+        reasoning_effort = kwargs.get("reasoning_effort")
+        if reasoning_effort in {"none", "low", "medium", "high"}:
+            payload["reasoning_effort"] = reasoning_effort
 
         try:
             response = await self._client.post(

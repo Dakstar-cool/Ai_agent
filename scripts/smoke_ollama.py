@@ -42,7 +42,7 @@ def parse_args() -> argparse.Namespace:
         help="Loaded tool-capable model name (or set OLLAMA_MODEL)",
     )
     parser.add_argument("--timeout", type=float, default=60.0)
-    parser.add_argument("--max-output-tokens", type=int, default=128)
+    parser.add_argument("--max-output-tokens", type=int, default=512)
     return parser.parse_args()
 
 

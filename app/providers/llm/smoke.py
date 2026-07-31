@@ -96,7 +96,7 @@ async def smoke_tool_provider(
     plain = await provider.chat(
         [{"role": "user", "content": "Reply with a short READY message."}],
         temperature=0,
-        max_tokens=min(max_tokens, 64),
+        max_tokens=max_tokens,
     )
     if not plain.content.strip() or plain.tool_calls:
         raise SmokeFailure("plain response check failed")

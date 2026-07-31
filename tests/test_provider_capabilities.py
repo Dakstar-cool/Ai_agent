@@ -112,3 +112,36 @@ async def test_ollama_capability_discovery_uses_native_show_endpoint(
     assert capabilities.tools is True
     assert capabilities.context_limit == 32_768
     await provider.aclose()
+
+
+@pytest.mark.asyncio
+async def test_ollama_disables_reasoning_by_default_for_tool_reliability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    async def fake_post(self, url, json):
+        captured.update(json)
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {"content": "ready"},
+                    }
+                ]
+            },
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    provider = OllamaProvider(
+        base_url="http://127.0.0.1:11434",
+        model="qwen3",
+    )
+
+    await provider.chat([{"role": "user", "content": "hello"}])
+
+    assert captured["reasoning_effort"] == "none"
+    await provider.aclose()

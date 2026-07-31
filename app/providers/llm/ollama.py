@@ -6,7 +6,7 @@ import httpx
 
 from app.errors import LLMProviderUnavailableError
 from app.providers.llm.lmstudio import OpenAICompatibleProvider
-from app.providers.llm.models import ProviderCapabilities
+from app.providers.llm.models import LLMResponse, ProviderCapabilities
 
 
 class OllamaProvider(OpenAICompatibleProvider):
@@ -19,7 +19,11 @@ class OllamaProvider(OpenAICompatibleProvider):
         timeout: float = 60.0,
         api_key: str | None = None,
         max_output_tokens: int = 1_024,
+        reasoning_effort: str | None = "none",
     ) -> None:
+        if reasoning_effort not in {None, "none", "low", "medium", "high"}:
+            raise ValueError("unsupported Ollama reasoning effort")
+        self.reasoning_effort = reasoning_effort
         normalized = base_url.rstrip("/")
         if not normalized.endswith("/v1"):
             normalized += "/v1"
@@ -30,6 +34,15 @@ class OllamaProvider(OpenAICompatibleProvider):
             api_key=api_key,
             max_output_tokens=max_output_tokens,
         )
+
+    async def chat(
+        self,
+        messages: list[dict[str, Any]],
+        **kwargs: Any,
+    ) -> LLMResponse:
+        if self.reasoning_effort is not None:
+            kwargs.setdefault("reasoning_effort", self.reasoning_effort)
+        return await super().chat(messages, **kwargs)
 
     async def discover_capabilities(self) -> ProviderCapabilities:
         native_root = self.base_url.removesuffix("/v1")

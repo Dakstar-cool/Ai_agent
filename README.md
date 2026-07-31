@@ -2,7 +2,7 @@
 
 Локальный каркас AI-агента на FastAPI с отдельным orchestration layer, LM Studio как текущим LLM backend, опциональной локальной памятью и безопасным набором инструментов для работы с проектом.
 
-Worker `0.8.6` содержит безопасный tool-calling foundation, persistent Run API,
+Worker `0.8.7` содержит безопасный tool-calling foundation, persistent Run API,
 изолированный coding workflow и policy-controlled autonomy modes.
 Один LLM-шаг Planner выполняется через ограниченный loop, автоматически запускающий
 только read-only tools. Runs, events, sessions и approvals сохраняются в SQLite/WAL.
@@ -249,7 +249,9 @@ uv run python scripts/smoke_ollama.py --model <loaded-model-name>
 `search_project`, malformed tool call и привязку `tool_call_id`. Ошибка выводится
 только как безопасный JSON с типом исключения, без traceback и provider details.
 Для Ollama endpoint можно задать через `OLLAMA_BASE_URL`, а модель — через
-`OLLAMA_MODEL` вместо CLI-параметров.
+`OLLAMA_MODEL` вместо CLI-параметров. Ollama preset по умолчанию передаёт
+`reasoning_effort=none` для надёжного tool calling, а smoke выделяет 512
+output-токенов для полного round-trip на компактных локальных моделях.
 
 Пример chat-запроса:
 

@@ -78,6 +78,7 @@ async def test_shared_provider_smoke_covers_safe_tool_roundtrip() -> None:
     forced_requests = [
         request for request in provider.requests if request["kwargs"].get("tools")
     ]
+    assert provider.requests[0]["kwargs"]["max_tokens"] == 96
     assert len(forced_requests) == 3
     assert all(
         request["kwargs"]["tool_choice"] == "required"

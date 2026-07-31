@@ -79,6 +79,7 @@ async def test_lmstudio_provider_sends_and_parses_tool_calls(
         tools=tools,
         tool_choice="auto",
         max_tokens=321,
+        reasoning_effort="low",
     )
 
     assert isinstance(response, LLMResponse)
@@ -88,6 +89,7 @@ async def test_lmstudio_provider_sends_and_parses_tool_calls(
     assert captured_payload["tools"] == tools
     assert captured_payload["tool_choice"] == "auto"
     assert captured_payload["max_tokens"] == 256
+    assert captured_payload["reasoning_effort"] == "low"
     await provider.aclose()
 
 
