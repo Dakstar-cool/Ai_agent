@@ -151,11 +151,14 @@ async def test_agent_loop_executes_read_tools_and_returns_results(tmp_path) -> N
         ]
     )
 
+    observed_steps = []
     response = await _orchestrator(provider, registry).handle(
-        ChatRequest(message="inspect the project", session_id="agent-loop")
+        ChatRequest(message="inspect the project", session_id="agent-loop"),
+        on_step=observed_steps.append,
     )
 
     assert response.reply == "Read and search completed"
+    assert observed_steps == response.steps
     definitions = {
         item["function"]["name"]: item["function"]
         for item in provider.calls[0]["tools"]

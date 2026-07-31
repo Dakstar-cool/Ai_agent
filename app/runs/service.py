@@ -264,18 +264,27 @@ class RunService:
                     message = "Continue the run after the approved tool call"
 
                 orchestrator = self.orchestrator_factory(run.workspace_id)
+                persisted_step_count = 0
+
+                def persist_step(step: ExecutionStep) -> None:
+                    nonlocal persisted_step_count
+                    self._append_step_event(run_id=run_id, step=step)
+                    persisted_step_count += 1
+
                 response = await orchestrator.handle(
                     ChatRequest(
                         message=message,
                         session_id=run.session_id,
                         project_path=workspace.root_path,
                         metadata=metadata,
-                    )
+                    ),
+                    on_step=persist_step,
                 )
                 await self._finish_response(
                     run_id=run_id,
                     response=response,
                     orchestrator=orchestrator,
+                    persisted_step_count=persisted_step_count,
                 )
         except asyncio.CancelledError:
             current = self.state_store.require_run(run_id)
@@ -318,35 +327,20 @@ class RunService:
         run_id: str,
         response: ChatResponse,
         orchestrator: Orchestrator,
+        persisted_step_count: int = 0,
     ) -> None:
         approval_steps: list[ExecutionStep] = []
         verification_failed = False
         has_code_verification = False
 
-        for step in response.steps:
+        for index, step in enumerate(response.steps):
             if step.status == "approval_required":
                 approval_steps.append(step)
-                continue
-            event_type = "tool_result"
-            if step.name == "llm_chat":
-                event_type = "llm_response"
-            elif step.name == "tool_call":
-                event_type = "tool_call"
-            elif step.name == "policy_audit":
-                event_type = "policy_audit"
-            elif step.name in {"verification", "code_verifier"}:
-                event_type = "verification"
+            if step.name in {"verification", "code_verifier"}:
                 verification_failed = verification_failed or step.status == "failed"
                 has_code_verification = has_code_verification or step.name == "code_verifier"
-            self.state_store.append_run_event(
-                run_id=run_id,
-                event_type=event_type,
-                payload={
-                    "name": step.name,
-                    "status": step.status,
-                    "result": step.payload,
-                },
-            )
+            if index >= persisted_step_count:
+                self._append_step_event(run_id=run_id, step=step)
 
         response_payload = response.model_dump(mode="json")
         if approval_steps:
@@ -399,6 +393,26 @@ class RunService:
             payload={},
             result=response.reply,
             response_payload=response_payload,
+        )
+
+    def _append_step_event(self, *, run_id: str, step: ExecutionStep) -> None:
+        event_type = "tool_result"
+        if step.name == "llm_chat":
+            event_type = "llm_response"
+        elif step.name == "tool_call":
+            event_type = "tool_call"
+        elif step.name == "policy_audit":
+            event_type = "policy_audit"
+        elif step.name in {"verification", "code_verifier"}:
+            event_type = "verification"
+        self.state_store.append_run_event(
+            run_id=run_id,
+            event_type=event_type,
+            payload={
+                "name": step.name,
+                "status": step.status,
+                "result": step.payload,
+            },
         )
 
     def _fail_run(

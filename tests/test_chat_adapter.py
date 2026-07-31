@@ -18,7 +18,7 @@ class ApprovalChatOrchestrator:
         self.approval_store = SQLitePendingApprovalStore(state_store=state_store)
         self.project_paths: list[str | None] = []
 
-    async def handle(self, request: ChatRequest) -> ChatResponse:
+    async def handle(self, request: ChatRequest, **_kwargs) -> ChatResponse:
         self.project_paths.append(request.project_path)
         approval_id = request.metadata.get("approve_tool_call_id")
         if isinstance(approval_id, str):

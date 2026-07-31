@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from app.errors import AppError
@@ -26,6 +27,19 @@ from app.tools.registry import ToolRegistry
 from app.utils.request_context import get_request_id
 
 logger = logging.getLogger(__name__)
+
+
+class _ObservedExecutionLog(list[ExecutionStep]):
+    def __init__(
+        self, observer: Callable[[ExecutionStep], None] | None = None
+    ) -> None:
+        super().__init__()
+        self._observer = observer
+
+    def append(self, step: ExecutionStep) -> None:
+        super().append(step)
+        if self._observer is not None:
+            self._observer(step)
 
 
 class Orchestrator:
@@ -65,7 +79,12 @@ class Orchestrator:
         self.agent_timeout_seconds = max(0.1, agent_timeout_seconds)
         self.approval_store = approval_store or PendingApprovalStore()
 
-    async def handle(self, request: ChatRequest) -> ChatResponse:
+    async def handle(
+        self,
+        request: ChatRequest,
+        *,
+        on_step: Callable[[ExecutionStep], None] | None = None,
+    ) -> ChatResponse:
         request_id = get_request_id()
         session = self.session_manager.get_or_create(request.session_id)
         try:
@@ -89,7 +108,7 @@ class Orchestrator:
                 status_code=403,
             )
 
-        execution_log: list[ExecutionStep] = []
+        execution_log: list[ExecutionStep] = _ObservedExecutionLog(on_step)
         approved_exchange = await self._maybe_execute_approved_tool(
             request=request,
             session_id=session.session_id,

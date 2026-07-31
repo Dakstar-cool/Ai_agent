@@ -2,7 +2,7 @@
 
 Локальный каркас AI-агента на FastAPI с отдельным orchestration layer, LM Studio как текущим LLM backend, опциональной локальной памятью и безопасным набором инструментов для работы с проектом.
 
-Worker `0.8.2` содержит безопасный tool-calling foundation, persistent Run API,
+Worker `0.8.3` содержит безопасный tool-calling foundation, persistent Run API,
 изолированный coding workflow и policy-controlled autonomy modes.
 Один LLM-шаг Planner выполняется через ограниченный loop, автоматически запускающий
 только read-only tools. Runs, events, sessions и approvals сохраняются в SQLite/WAL.
@@ -24,6 +24,8 @@ Worker `0.8.2` содержит безопасный tool-calling foundation, pe
 - State machine `queued/running/waiting_approval/verifying/completed/failed/cancelled`.
 - Append-only `RunEvent`, восстановление timeline после restart и один execution lock
   на workspace.
+- LLM/tool/verification steps записываются в RunEvent сразу во время
+  execution, поэтому SSE timeline не ждёт финального ответа orchestrator.
 - Task branch/worktree от committed SHA без stash/reset исходного workspace.
 - Детерминированный `MutationPreview`, approval по `preview_hash` и stale-state check
   перед атомарной записью.
@@ -84,6 +86,7 @@ app/
     terminal/                     # run_command без shell и с allow-list
   utils/
     logging.py
+    observability.py                # opt-in bounded OTLP/HTTP traces и metrics
     request_context.py
 
 docs/
@@ -146,8 +149,9 @@ POST /api/v1/task-worktrees/{task_id}/verify
 POST /api/v1/task-worktrees/{task_id}/finalize
 ```
 
-SSE events имеют монотонный `sequence`, поэтому timeline можно восстановить после
-перезапуска или reconnect. Interrupted `running/verifying` run после restart
+SSE events имеют монотонный `sequence` и публикуются по мере execution,
+поэтому timeline можно показывать до terminal response и восстанавливать после
+restart/reconnect. Interrupted `running/verifying` run после restart
 становится `failed` с безопасным `worker_restarted`; queued run возобновляется,
 waiting approval сохраняется.
 

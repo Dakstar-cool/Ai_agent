@@ -10,7 +10,7 @@ from app.schemas.chat import ChatResponse
 
 
 class FakeOrchestrator:
-    async def handle(self, request):
+    async def handle(self, request, **_kwargs):
         return ChatResponse(
             session_id=request.session_id or "test-session",
             route="general",
@@ -40,7 +40,7 @@ def test_health_returns_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
-    assert response.json()["version"] == "0.8.2"
+    assert response.json()["version"] == "0.8.3"
     assert response.json()["protocol_version"] == "0.3.0"
 
 

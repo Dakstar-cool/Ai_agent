@@ -19,7 +19,7 @@ class CompletingOrchestrator:
         self.approval_store = SQLitePendingApprovalStore(state_store=state_store)
         self.calls = 0
 
-    async def handle(self, request) -> ChatResponse:
+    async def handle(self, request, **_kwargs) -> ChatResponse:
         self.calls += 1
         return ChatResponse(
             session_id=request.session_id,
@@ -37,14 +37,14 @@ class CompletingOrchestrator:
 
 
 class ApprovalOrchestrator(CompletingOrchestrator):
-    async def handle(self, request) -> ChatResponse:
+    async def handle(self, request, **kwargs) -> ChatResponse:
         approval_id = request.metadata.get("approve_tool_call_id")
         if isinstance(approval_id, str):
             self.approval_store.consume(
                 approval_id=approval_id,
                 session_id=request.session_id,
             )
-            return await super().handle(request)
+            return await super().handle(request, **kwargs)
 
         pending = self.approval_store.create(
             session_id=request.session_id,
@@ -79,14 +79,14 @@ class BlockingOrchestrator(CompletingOrchestrator):
         super().__init__(state_store)
         self.started = asyncio.Event()
 
-    async def handle(self, request) -> ChatResponse:
+    async def handle(self, request, **_kwargs) -> ChatResponse:
         self.started.set()
         await asyncio.Event().wait()
         raise AssertionError("unreachable")
 
 
 class FailedVerificationOrchestrator(CompletingOrchestrator):
-    async def handle(self, request) -> ChatResponse:
+    async def handle(self, request, **_kwargs) -> ChatResponse:
         return ChatResponse(
             session_id=request.session_id,
             route="coding",
@@ -102,7 +102,7 @@ class FailedVerificationOrchestrator(CompletingOrchestrator):
 
 
 class ExplodingOrchestrator(CompletingOrchestrator):
-    async def handle(self, request) -> ChatResponse:
+    async def handle(self, request, **_kwargs) -> ChatResponse:
         raise RuntimeError("secret-token-and-traceback")
 
 
@@ -112,12 +112,39 @@ class TrackingOrchestrator(CompletingOrchestrator):
         self.active = 0
         self.max_active = 0
 
-    async def handle(self, request) -> ChatResponse:
+    async def handle(self, request, **kwargs) -> ChatResponse:
         self.active += 1
         self.max_active = max(self.max_active, self.active)
         await asyncio.sleep(0.03)
         self.active -= 1
-        return await super().handle(request)
+        return await super().handle(request, **kwargs)
+
+
+class StreamingOrchestrator(CompletingOrchestrator):
+    def __init__(self, state_store: SQLiteStateStore) -> None:
+        super().__init__(state_store)
+        self.emitted = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def handle(self, request, *, on_step=None) -> ChatResponse:
+        llm_step = ExecutionStep(
+            name="llm_chat",
+            status="ok",
+            payload={"finish_reason": "tool_calls"},
+        )
+        if on_step is not None:
+            on_step(llm_step)
+        self.emitted.set()
+        await self.release.wait()
+        verification = ExecutionStep(name="verification", status="ok", payload={})
+        if on_step is not None:
+            on_step(verification)
+        return ChatResponse(
+            session_id=request.session_id,
+            route="general",
+            reply="streamed",
+            steps=[llm_step, verification],
+        )
 
 
 def _state(tmp_path) -> tuple[SQLiteStateStore, str]:
@@ -162,6 +189,36 @@ async def test_run_completes_with_persistent_timeline(tmp_path) -> None:
     reopened = SQLiteStateStore(state.path)
     assert reopened.require_run(created.id).state is RunState.COMPLETED
     assert len(reopened.list_run_events(created.id)) == 5
+
+
+@pytest.mark.asyncio
+async def test_run_persists_steps_before_orchestrator_finishes(tmp_path) -> None:
+    state, workspace_id = _state(tmp_path)
+    orchestrator = StreamingOrchestrator(state)
+    service = RunService(
+        state_store=state,
+        orchestrator_factory=lambda _workspace_id: orchestrator,
+        poll_interval_seconds=0.01,
+    )
+    created = await service.create_run(
+        workspace_id=workspace_id,
+        session_id=None,
+        message="stream",
+        metadata={},
+    )
+
+    try:
+        await asyncio.wait_for(orchestrator.emitted.wait(), timeout=1)
+        assert state.require_run(created.id).state is RunState.RUNNING
+        live_types = [event.type for event in state.list_run_events(created.id)]
+        assert live_types == ["run_created", "run_started", "llm_response"]
+    finally:
+        orchestrator.release.set()
+
+    completed = await service.wait_for_terminal(created.id, timeout_seconds=1)
+    final_types = [event.type for event in state.list_run_events(created.id)]
+    assert completed.state is RunState.COMPLETED
+    assert final_types.count("llm_response") == 1
 
 
 @pytest.mark.asyncio

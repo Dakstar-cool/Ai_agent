@@ -22,7 +22,7 @@ class ApiOrchestrator:
     def __init__(self, state_store: SQLiteStateStore) -> None:
         self.approval_store = SQLitePendingApprovalStore(state_store=state_store)
 
-    async def handle(self, request) -> ChatResponse:
+    async def handle(self, request, **_kwargs) -> ChatResponse:
         return ChatResponse(
             session_id=request.session_id,
             route="general",
