@@ -6,7 +6,7 @@
 
 `M8 — providers, memory и platform hardening` реализован локально. Канонический
 статус всего проекта хранится в `ai-agent-contracts/docs/PROJECT_STATE.md`.
-Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio smoke.
+Real LM Studio gate пройден 2026-08-01; release tag ожидает опубликованный CI.
 
 ## Завершено
 
@@ -15,6 +15,8 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
 - `ToolRegistry` генерирует OpenAI-compatible tool definitions;
 - LM Studio provider поддерживает `tools`, `tool_choice`, `message.tool_calls` и
   локальный HTTP-клиент с `trust_env=False`;
+- каждый provider request ограничен `LLM_MAX_OUTPUT_TOKENS`; реальный LM Studio smoke
+  проверяет plain response, `read_file`, `search_project`, malformed call и `tool_call_id`;
 - agent loop ограничен steps, tool calls, deadline и duplicate protection;
 - автоматически выполняются только read-only tools;
 - mutating tools создают одноразовый approval, привязанный к session и TTL;
@@ -67,22 +69,23 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
   export/delete; сохраняются summaries/decisions, а не raw tool outputs;
 - JSON logs содержат request/run/task IDs; release CI выполняет dependency scan,
   формирует CycloneDX SBOM и аттестует только tagged artifacts;
-- полный M8 worker gate: 138 tests, compileall и ruff — зелёные.
+- полный M8 worker gate: 146 tests + 2 platform skips, compileall, ruff, build,
+  SBOM/audit, Windows sidecar и real LM Studio smoke — зелёные.
 
-## Незакрытый release gate M0
+## Release evidence M0
 
-- выполнить smoke-test обычного ответа, `read_file`, `search_project` и malformed
-  tool call с реальным LM Studio;
-- после успешного smoke создать release tag `v0.2.0`.
+- smoke-test обычного ответа, `read_file`, `search_project` и malformed tool call
+  с реальным LM Studio успешно выполнен на `liquid/lfm2.5-1.2b`;
+- исторический tag `v0.2.0` не создаётся на коде `0.8.x`; следующий release tag
+  создаётся только после опубликованного CI и актуальной compatibility matrix.
 
-На 2026-07-31 smoke заблокирован внешним состоянием: LM Studio process отсутствует,
-а на `127.0.0.1:1234` нет listener. Это не блокирует M1, но блокирует release tag.
+Воспроизводимый harness: `uv run python scripts/smoke_lmstudio.py --model <loaded-model-id>`.
 
 ## Следующий milestone
 
 Release evidence и эксплуатационная проверка:
 
-1. выполнить реальный LM Studio/Ollama smoke с загруженными моделями;
+1. выполнить Ollama smoke после установки runtime и загрузки tool-capable модели;
 2. запустить опубликованные Windows/Linux/macOS CI и signing/notarization;
 3. выполнить PostgreSQL/MinIO reconnect и backup/restore gate в CI;
 4. провести двухустройственный offline/handoff E2E.
@@ -98,7 +101,7 @@ Release evidence и эксплуатационная проверка:
 - SQLite operations пока синхронные и рассчитаны на local single-worker workload;
 - fine-grained LLM/tool events записываются после завершения orchestrator response,
   поэтому token streaming появится вместе с desktop integration;
-- реальный LM Studio smoke зависит от локально запущенного сервера и модели.
+- Ollama runtime и модель локально пока не установлены; LM Studio smoke закрыт.
 
 ## Правило продолжения
 

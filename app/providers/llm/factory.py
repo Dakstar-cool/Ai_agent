@@ -11,6 +11,7 @@ def build_llm_provider(
     config: ProviderRuntimeConfig,
     *,
     timeout: float = 60.0,
+    max_output_tokens: int = 1_024,
 ) -> OpenAICompatibleProvider:
     config = config.validate()
     parsed = urlsplit(config.base_url)
@@ -26,4 +27,5 @@ def build_llm_provider(
         model=config.model,
         timeout=timeout,
         api_key=config.api_key,
+        max_output_tokens=max_output_tokens,
     )

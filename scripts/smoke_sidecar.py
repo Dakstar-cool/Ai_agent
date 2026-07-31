@@ -6,6 +6,7 @@ import os
 import queue
 import secrets
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -62,6 +63,20 @@ def _wait_for_status(
 
 def _stop_process(process: subprocess.Popen[str]) -> None:
     if process.poll() is not None:
+        return
+    if sys.platform == "win32":
+        subprocess.run(
+            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=10.0,
+        )
+        try:
+            process.wait(timeout=5.0)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5.0)
         return
     process.terminate()
     try:

@@ -12,7 +12,8 @@ from app.providers.llm.runtime_config import ProviderRuntimeConfig
 @pytest.mark.asyncio
 async def test_provider_factory_selects_local_presets_and_generic_remote() -> None:
     lmstudio = build_llm_provider(
-        ProviderRuntimeConfig(base_url="http://127.0.0.1:1234/v1", model="local")
+        ProviderRuntimeConfig(base_url="http://127.0.0.1:1234/v1", model="local"),
+        max_output_tokens=512,
     )
     ollama = build_llm_provider(
         ProviderRuntimeConfig(base_url="http://localhost:11434", model="local")
@@ -26,6 +27,7 @@ async def test_provider_factory_selects_local_presets_and_generic_remote() -> No
     )
 
     assert isinstance(lmstudio, LMStudioProvider)
+    assert lmstudio.max_output_tokens == 512
     assert isinstance(ollama, OllamaProvider)
     assert ollama.base_url == "http://localhost:11434/v1"
     assert type(remote) is OpenAICompatibleProvider

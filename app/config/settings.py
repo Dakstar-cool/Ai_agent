@@ -30,6 +30,7 @@ class Settings(BaseSettings):
 
     lmstudio_base_url: str = "http://127.0.0.1:1234/v1"
     lmstudio_model: str = "google/gemma-4-e4b"
+    llm_max_output_tokens: int = Field(default=1_024, ge=16, le=32_768)
 
     enable_memory: bool = False
     memory_backend: str = "noop"

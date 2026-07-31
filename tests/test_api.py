@@ -40,7 +40,7 @@ def test_health_returns_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
-    assert response.json()["version"] == "0.8.4"
+    assert response.json()["version"] == "0.8.5"
     assert response.json()["protocol_version"] == "0.3.0"
 
 

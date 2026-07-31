@@ -58,7 +58,11 @@ async def test_lmstudio_provider_sends_and_parses_tool_calls(
         )
 
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
-    provider = LMStudioProvider(base_url="http://127.0.0.1:1234/v1", model="demo")
+    provider = LMStudioProvider(
+        base_url="http://127.0.0.1:1234/v1",
+        model="demo",
+        max_output_tokens=256,
+    )
     tools = [
         {
             "type": "function",
@@ -74,6 +78,7 @@ async def test_lmstudio_provider_sends_and_parses_tool_calls(
         messages=[{"role": "user", "content": "read"}],
         tools=tools,
         tool_choice="auto",
+        max_tokens=321,
     )
 
     assert isinstance(response, LLMResponse)
@@ -82,6 +87,7 @@ async def test_lmstudio_provider_sends_and_parses_tool_calls(
     assert response.tool_calls[0].arguments == {"path": "README.md"}
     assert captured_payload["tools"] == tools
     assert captured_payload["tool_choice"] == "auto"
+    assert captured_payload["max_tokens"] == 256
     await provider.aclose()
 
 

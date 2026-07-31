@@ -75,7 +75,11 @@ def _build_orchestrator(
         base_url=settings.lmstudio_base_url,
         model=settings.lmstudio_model,
     )
-    llm_provider = build_llm_provider(provider_config)
+    llm_provider = build_llm_provider(
+        provider_config,
+        timeout=min(settings.agent_timeout_seconds, 60.0),
+        max_output_tokens=settings.llm_max_output_tokens,
+    )
     memory_service = build_memory_service(settings)
     worktree_service = TaskWorktreeService(
         state_store=state_store,

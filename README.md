@@ -2,7 +2,7 @@
 
 Локальный каркас AI-агента на FastAPI с отдельным orchestration layer, LM Studio как текущим LLM backend, опциональной локальной памятью и безопасным набором инструментов для работы с проектом.
 
-Worker `0.8.4` содержит безопасный tool-calling foundation, persistent Run API,
+Worker `0.8.5` содержит безопасный tool-calling foundation, persistent Run API,
 изолированный coding workflow и policy-controlled autonomy modes.
 Один LLM-шаг Planner выполняется через ограниченный loop, автоматически запускающий
 только read-only tools. Runs, events, sessions и approvals сохраняются в SQLite/WAL.
@@ -223,6 +223,7 @@ Copy-Item .env.example .env
 ```env
 LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1
 LMSTUDIO_MODEL=google/gemma-4-e4b
+LLM_MAX_OUTPUT_TOKENS=1024
 ```
 
 Старт API:
@@ -235,6 +236,12 @@ uv run python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/health
+```
+
+Проверка реального LM Studio с уже загруженной tool-capable моделью:
+
+```powershell
+uv run python scripts/smoke_lmstudio.py --model <loaded-model-id>
 ```
 
 Пример chat-запроса:
@@ -267,6 +274,7 @@ Invoke-RestMethod `
 | `TELEMETRY_SERVICE_NAME` | `ai-agent-worker` | Безопасное service name в telemetry resource. |
 | `LMSTUDIO_BASE_URL` | `http://127.0.0.1:1234/v1` | OpenAI-compatible endpoint LM Studio. |
 | `LMSTUDIO_MODEL` | `google/gemma-4-e4b` | Модель для запросов к LM Studio. |
+| `LLM_MAX_OUTPUT_TOKENS` | `1024` | Жёсткий предел output tokens одного LLM-запроса. |
 | `ENABLE_MEMORY` | `false` | Включает сохранение и recall памяти. |
 | `MEMORY_BACKEND` | `noop` | Поддерживаются `noop`, legacy `json` и `sqlite`/FTS5. |
 | `MEMORY_FILE_PATH` | `data/memory/interactions.jsonl` | JSONL-файл памяти. |

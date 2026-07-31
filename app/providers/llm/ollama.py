@@ -18,11 +18,18 @@ class OllamaProvider(OpenAICompatibleProvider):
         model: str,
         timeout: float = 60.0,
         api_key: str | None = None,
+        max_output_tokens: int = 1_024,
     ) -> None:
         normalized = base_url.rstrip("/")
         if not normalized.endswith("/v1"):
             normalized += "/v1"
-        super().__init__(normalized, model, timeout=timeout, api_key=api_key)
+        super().__init__(
+            normalized,
+            model,
+            timeout=timeout,
+            api_key=api_key,
+            max_output_tokens=max_output_tokens,
+        )
 
     async def discover_capabilities(self) -> ProviderCapabilities:
         native_root = self.base_url.removesuffix("/v1")

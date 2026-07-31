@@ -24,10 +24,12 @@ class OpenAICompatibleProvider(ILLMProvider):
         model: str,
         timeout: float = 60.0,
         api_key: str | None = None,
+        max_output_tokens: int = 1_024,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
+        self.max_output_tokens = max(16, min(max_output_tokens, 32_768))
         self.requires_network_permission = (
             urlsplit(self.base_url).hostname or ""
         ).casefold() not in {"127.0.0.1", "localhost", "::1"}
@@ -42,10 +44,18 @@ class OpenAICompatibleProvider(ILLMProvider):
         await self._client.aclose()
 
     async def chat(self, messages: list[dict[str, Any]], **kwargs: Any) -> LLMResponse:
+        requested_max_tokens = kwargs.get("max_tokens", self.max_output_tokens)
+        max_tokens = (
+            max(1, min(requested_max_tokens, self.max_output_tokens))
+            if isinstance(requested_max_tokens, int)
+            and not isinstance(requested_max_tokens, bool)
+            else self.max_output_tokens
+        )
         payload: dict[str, Any] = {
             "model": kwargs.get("model", self.model),
             "messages": messages,
             "temperature": kwargs.get("temperature", 0.2),
+            "max_tokens": max_tokens,
         }
         tools = kwargs.get("tools")
         if tools:
