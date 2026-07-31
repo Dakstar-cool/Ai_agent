@@ -36,6 +36,52 @@ def test_path_policy_rejects_protected_path_parts(tmp_path) -> None:
         policy.resolve(".git/config", must_exist=False)
 
 
+def test_path_policy_rejects_symlinks_even_when_target_is_inside_workspace(
+    tmp_path,
+) -> None:
+    target = tmp_path / "target.txt"
+    target.write_text("safe", encoding="utf-8")
+    link = tmp_path / "linked.txt"
+    try:
+        link.symlink_to(target)
+    except OSError:
+        pytest.skip("Creating symlinks is unavailable on this host")
+
+    with pytest.raises(ToolInputError, match="Symbolic links"):
+        WorkspacePathPolicy(tmp_path).resolve("linked.txt", must_exist=True)
+
+
+@pytest.mark.asyncio
+async def test_approved_write_rejects_symlink_swap_before_mutation(tmp_path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    path = workspace / "note.txt"
+    path.write_text("original\n", encoding="utf-8")
+    outside = tmp_path / "outside.txt"
+    outside.write_text("outside\n", encoding="utf-8")
+    tool = WriteFileTool(root_dir=workspace)
+    preview = await tool.preview(
+        path="note.txt",
+        content="approved\n",
+        mode="overwrite",
+    )
+    path.unlink()
+    try:
+        path.symlink_to(outside)
+    except OSError:
+        pytest.skip("Creating symlinks is unavailable on this host")
+
+    with pytest.raises(ToolInputError, match="Symbolic links"):
+        await tool.apply_preview(
+            mutation_preview=preview,
+            path="note.txt",
+            content="approved\n",
+            mode="overwrite",
+        )
+
+    assert outside.read_text(encoding="utf-8") == "outside\n"
+
+
 @pytest.mark.asyncio
 async def test_write_file_rejects_large_content(tmp_path) -> None:
     tool = WriteFileTool(root_dir=tmp_path, max_bytes=3)

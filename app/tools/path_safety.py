@@ -72,6 +72,20 @@ class WorkspacePathPolicy:
         candidate = Path(value).expanduser()
         if not candidate.is_absolute():
             candidate = root / candidate
+        candidate = Path(os.path.abspath(candidate))
+
+        if not candidate.is_relative_to(root):
+            raise ToolInputError(
+                "Path is outside the allowed workspace",
+                details={"path": str(candidate), "workspace_root": str(root)},
+            )
+
+        linked_part = self.first_link_part(candidate)
+        if linked_part is not None:
+            raise ToolInputError(
+                "Symbolic links and junctions are not allowed in tool paths",
+                details={"path": str(candidate), "linked_part": linked_part},
+            )
 
         try:
             resolved = candidate.resolve(strict=must_exist)
@@ -96,6 +110,25 @@ class WorkspacePathPolicy:
 
         return resolved
 
+    def first_link_part(self, path: Path) -> str | None:
+        absolute = Path(os.path.abspath(path))
+        try:
+            relative = absolute.relative_to(self.root_dir)
+        except ValueError:
+            return None
+
+        current = self.root_dir
+        for part in relative.parts:
+            current /= part
+            try:
+                is_junction = current.is_junction()
+                is_symlink = current.is_symlink()
+            except OSError:
+                return part
+            if is_symlink or is_junction:
+                return part
+        return None
+
     def first_protected_part(self, path: Path) -> str | None:
         resolved = path.resolve(strict=False)
         try:
@@ -111,6 +144,8 @@ class WorkspacePathPolicy:
     def is_ignored_path(
         self, path: Path, *, ignored_dirs: set[str] | frozenset[str] = IGNORED_DIRS
     ) -> bool:
+        if self.first_link_part(path) is not None:
+            return True
         ignored = {item.lower() for item in ignored_dirs} | self.protected_parts
         try:
             relative = path.resolve(strict=False).relative_to(self.root_dir)

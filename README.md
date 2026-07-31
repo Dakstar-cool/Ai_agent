@@ -2,7 +2,7 @@
 
 Локальный каркас AI-агента на FastAPI с отдельным orchestration layer, LM Studio как текущим LLM backend, опциональной локальной памятью и безопасным набором инструментов для работы с проектом.
 
-Worker `0.8.0` содержит безопасный tool-calling foundation, persistent Run API,
+Worker `0.8.1` содержит безопасный tool-calling foundation, persistent Run API,
 изолированный coding workflow и policy-controlled autonomy modes.
 Один LLM-шаг Planner выполняется через ограниченный loop, автоматически запускающий
 только read-only tools. Runs, events, sessions и approvals сохраняются в SQLite/WAL.
