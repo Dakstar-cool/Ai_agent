@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import shutil
 import subprocess
 import sys
@@ -39,7 +40,14 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     destination = output_dir / f"ai-agent-worker-{args.target_triple}{extension}"
     shutil.copy2(source, destination)
+    checksum = hashlib.sha256(destination.read_bytes()).hexdigest()
+    checksum_path = destination.with_name(f"{destination.name}.sha256")
+    checksum_path.write_text(
+        f"{checksum}  {destination.name}\n",
+        encoding="utf-8",
+    )
     print(destination)
+    print(checksum_path)
     return 0
 
 

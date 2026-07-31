@@ -2,7 +2,7 @@
 
 Локальный каркас AI-агента на FastAPI с отдельным orchestration layer, LM Studio как текущим LLM backend, опциональной локальной памятью и безопасным набором инструментов для работы с проектом.
 
-Worker `0.5.0` содержит безопасный tool-calling foundation, persistent Run API,
+Worker `0.6.0` содержит безопасный tool-calling foundation, persistent Run API,
 изолированный coding workflow и policy-controlled autonomy modes.
 Один LLM-шаг Planner выполняется через ограниченный loop, автоматически запускающий
 только read-only tools. Runs, events, sessions и approvals сохраняются в SQLite/WAL.
@@ -132,6 +132,7 @@ POST /api/v1/chat (compatibility adapter)
 POST /api/v1/workspaces
 GET  /api/v1/workspaces
 POST /api/v1/runs
+GET  /api/v1/runs?workspace_id=<uuid>&limit=50
 GET  /api/v1/runs/{run_id}
 GET  /api/v1/runs/{run_id}/events?after=0
 POST /api/v1/runs/{run_id}/cancel
@@ -335,6 +336,16 @@ uv run python -m compileall app tests
 uv run pytest -q
 uv run ruff check .
 ```
+
+## Sidecar artifacts
+
+`scripts/build_sidecar.py` создаёт PyInstaller executable с Tauri target triple в имени
+и отдельный SHA-256 checksum. `scripts/smoke_sidecar.py` запускает готовый бинарник и
+проверяет random loopback port, обязательный bearer token и protocol version.
+
+GitHub Actions собирает и smoke-проверяет sidecar отдельно на Windows x64, Linux x64 и
+macOS arm64. Артефакты workflow имеют срок хранения 14 дней и не считаются подписанным
+релизом.
 
 ## Тесты
 

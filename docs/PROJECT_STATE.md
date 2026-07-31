@@ -56,6 +56,8 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
 - добавлен безопасный pending-approval endpoint для desktop diff preview;
 - persistent run history доступна через `GET /api/v1/runs` с workspace filter;
 - Windows sidecar собран и smoke-проверен: protected health отвечает только с bearer;
+- добавлен CI matrix для сборки и smoke-проверки sidecar на Windows x64, Linux x64 и
+  macOS arm64; каждый artifact сопровождается SHA-256 checksum;
 - полный M5 worker gate: 126 tests, compileall и ruff — зелёные.
 
 ## Незакрытый release gate M0
@@ -72,7 +74,7 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
 Продолжение `M5 — cross-platform desktop MVP`:
 
 1. проверить Rust/Tauri crate нативно на Windows/Linux/macOS CI;
-2. подключить настоящие sidecar artifacts для трёх target triples;
+2. подключить проверенные sidecar artifacts к desktop release workflow;
 3. добавить Tauri integration tests crash/restart и bootstrap auth;
 4. подготовить unsigned packaging smoke, затем signing/notarization secrets;
 5. закрыть protocol minor-version negotiation и high-level task/worktree UX.
