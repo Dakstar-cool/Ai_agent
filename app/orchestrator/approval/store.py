@@ -192,7 +192,7 @@ class PendingApprovalStore:
         if preview is None:
             return None
         finalized: dict[str, object] = {
-            "schema_version": "0.1.0",
+            "schema_version": "0.2.0",
             "preview_id": approval_id,
             **preview,
             "expires_at": datetime.fromtimestamp(expires_at, UTC).isoformat(),

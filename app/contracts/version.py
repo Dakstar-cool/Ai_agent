@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-PROTOCOL_VERSION = "0.1.0"
+PROTOCOL_VERSION = "0.2.0"
 PROTOCOL_MAJOR = 0
 CONTRACTS_SCHEMA_SHA256 = (
     "7e98ee5247d030399db0e96a38583579d820b20763f9b381c4d3ab64f6ffabbe"

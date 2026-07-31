@@ -48,6 +48,8 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
   post-action SHA-256;
 - policy unit/E2E доказывают scoped autonomous write без approval и невозможность
   обхода hard deny; полный M4 gate: 109 tests, compileall и ruff — зелёные.
+- worker закреплён на additive contracts protocol `0.2.0` с RunPolicy и
+  `policy_audit`.
 
 ## Незакрытый release gate M0
 

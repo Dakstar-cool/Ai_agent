@@ -39,7 +39,7 @@ def test_health_returns_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
-    assert response.json()["protocol_version"] == "0.1.0"
+    assert response.json()["protocol_version"] == "0.2.0"
 
 
 def test_chat_works_without_api_key_when_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:

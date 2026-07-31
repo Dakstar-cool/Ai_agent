@@ -2,7 +2,7 @@ from app.contracts import PROTOCOL_VERSION, is_protocol_compatible
 
 
 def test_worker_pins_protocol_0_1_0() -> None:
-    assert PROTOCOL_VERSION == "0.1.0"
+    assert PROTOCOL_VERSION == "0.2.0"
 
 
 def test_compatible_minor_and_patch_share_major() -> None:

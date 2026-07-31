@@ -422,7 +422,7 @@ class RunService:
         details: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         error: dict[str, Any] = {
-            "schema_version": "0.1.0",
+            "schema_version": "0.2.0",
             "code": code,
             "message": message,
         }

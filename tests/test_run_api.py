@@ -71,7 +71,7 @@ def test_run_api_creates_polls_and_streams_timeline(run_api) -> None:
     created_response = client.post(
         "/api/v1/runs",
         json={
-            "schema_version": "0.1.0",
+            "schema_version": "0.2.0",
             "workspace_id": workspace_id,
             "message": "inspect",
         },
@@ -95,7 +95,7 @@ def test_run_api_creates_polls_and_streams_timeline(run_api) -> None:
     assert events.headers["content-type"].startswith("text/event-stream")
     assert "event: run_created" in events.text
     assert "event: run_completed" in events.text
-    assert '"schema_version":"0.1.0"' in events.text
+    assert '"schema_version":"0.2.0"' in events.text
 
 
 def test_run_api_rejects_unknown_workspace(run_api) -> None:
@@ -104,7 +104,7 @@ def test_run_api_rejects_unknown_workspace(run_api) -> None:
     response = client.post(
         "/api/v1/runs",
         json={
-            "schema_version": "0.1.0",
+            "schema_version": "0.2.0",
             "workspace_id": str(uuid4()),
             "message": "inspect",
         },
@@ -135,11 +135,11 @@ def test_run_api_persists_server_activated_policy_grant(run_api) -> None:
     response = client.post(
         "/api/v1/runs",
         json={
-            "schema_version": "0.1.0",
+            "schema_version": "0.2.0",
             "workspace_id": workspace_id,
             "message": "supervised change",
             "policy": {
-                "schema_version": "0.1.0",
+                "schema_version": "0.2.0",
                 "mode": "supervised",
                 "ttl_seconds": 120,
                 "issued_at": "2000-01-01T00:00:00Z",
@@ -162,11 +162,11 @@ def test_run_api_rejects_non_safe_policy_without_ttl(run_api) -> None:
     response = client.post(
         "/api/v1/runs",
         json={
-            "schema_version": "0.1.0",
+            "schema_version": "0.2.0",
             "workspace_id": workspace_id,
             "message": "unsafe grant",
             "policy": {
-                "schema_version": "0.1.0",
+                "schema_version": "0.2.0",
                 "mode": "autonomous",
                 "allowed_tools": ["write_file"],
                 "path_globs": ["**"],
@@ -229,7 +229,7 @@ def test_approval_decision_endpoint_rejects_pending_action(run_api) -> None:
     response = client.post(
         f"/api/v1/approvals/{pending.approval_id}/decision",
         json={
-            "schema_version": "0.1.0",
+            "schema_version": "0.2.0",
             "approval_id": pending.approval_id,
             "decision": "reject",
             "preview_hash": pending.approval_hash,
