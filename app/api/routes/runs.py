@@ -100,6 +100,24 @@ async def create_run(request: CreateRunRequest) -> RunResponse:
     return RunResponse.from_record(run)
 
 
+@router.get("/runs", response_model=list[RunResponse])
+async def list_runs(
+    workspace_id: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[RunResponse]:
+    state_store = get_state_store()
+    if workspace_id is not None and state_store.get_workspace(workspace_id) is None:
+        raise AppError(
+            message="Workspace was not found",
+            code="workspace_not_found",
+            status_code=404,
+        )
+    return [
+        RunResponse.from_record(run)
+        for run in state_store.list_runs(workspace_id=workspace_id, limit=limit)
+    ]
+
+
 @router.get("/runs/{run_id}", response_model=RunResponse)
 async def get_run(
     run_id: Annotated[str, ApiPath(pattern=r"^[a-f0-9-]{32,36}$")],

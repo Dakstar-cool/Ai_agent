@@ -49,6 +49,35 @@ def test_store_enables_wal_and_persists_run_across_instances(tmp_path) -> None:
         assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
 
 
+def test_store_lists_recent_runs_by_workspace(tmp_path) -> None:
+    store, workspace_a = _store(tmp_path)
+    workspace_b = str(uuid4())
+    other_root = tmp_path / "other"
+    other_root.mkdir()
+    store.register_workspace(
+        workspace_id=workspace_b,
+        name="Other workspace",
+        root_path=other_root,
+    )
+    first = store.create_run(
+        run_id=str(uuid4()),
+        workspace_id=workspace_a,
+        session_id=str(uuid4()),
+        message="first",
+        metadata={},
+    )
+    second = store.create_run(
+        run_id=str(uuid4()),
+        workspace_id=workspace_b,
+        session_id=str(uuid4()),
+        message="second",
+        metadata={},
+    )
+
+    assert [run.id for run in store.list_runs(limit=1)] == [second.id]
+    assert [run.id for run in store.list_runs(workspace_id=workspace_a)] == [first.id]
+
+
 def test_invalid_run_transition_is_rejected_without_event(tmp_path) -> None:
     store, workspace_id = _store(tmp_path)
     run_id = str(uuid4())

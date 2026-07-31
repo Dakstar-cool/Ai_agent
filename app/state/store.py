@@ -399,6 +399,30 @@ class SQLiteStateStore:
             )
         return run
 
+    def list_runs(
+        self,
+        *,
+        workspace_id: str | None = None,
+        limit: int = 50,
+    ) -> list[RunRecord]:
+        self.initialize()
+        bounded_limit = min(max(1, limit), 200)
+        with self._connect() as connection:
+            if workspace_id is None:
+                rows = connection.execute(
+                    "SELECT * FROM runs ORDER BY updated_at DESC LIMIT ?",
+                    (bounded_limit,),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """
+                    SELECT * FROM runs WHERE workspace_id=?
+                    ORDER BY updated_at DESC LIMIT ?
+                    """,
+                    (workspace_id, bounded_limit),
+                ).fetchall()
+        return [self._run_from_row(row) for row in rows]
+
     def transition_run(
         self,
         *,

@@ -114,6 +114,40 @@ def test_run_api_rejects_unknown_workspace(run_api) -> None:
     assert response.json()["error"]["code"] == "workspace_not_found"
 
 
+def test_run_api_lists_history_for_selected_workspace(run_api) -> None:
+    client, state, workspace_id, _orchestrator = run_api
+    other_workspace_id = str(uuid4())
+    other_root = state.path.parent / "other-workspace"
+    other_root.mkdir()
+    state.register_workspace(
+        workspace_id=other_workspace_id,
+        name="Other",
+        root_path=other_root,
+    )
+    selected = state.create_run(
+        run_id=str(uuid4()),
+        workspace_id=workspace_id,
+        session_id=str(uuid4()),
+        message="selected",
+        metadata={},
+    )
+    state.create_run(
+        run_id=str(uuid4()),
+        workspace_id=other_workspace_id,
+        session_id=str(uuid4()),
+        message="other",
+        metadata={},
+    )
+
+    response = client.get(
+        "/api/v1/runs",
+        params={"workspace_id": workspace_id, "limit": 10},
+    )
+
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()] == [selected.id]
+
+
 def test_run_api_rejects_incompatible_protocol(run_api) -> None:
     client, _state, workspace_id, _orchestrator = run_api
 

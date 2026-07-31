@@ -54,8 +54,9 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
 - provider credentials передаются только в память, remote provider требует HTTPS,
   explicit opt-in и `RunPolicy.network_allowed=true`;
 - добавлен безопасный pending-approval endpoint для desktop diff preview;
+- persistent run history доступна через `GET /api/v1/runs` с workspace filter;
 - Windows sidecar собран и smoke-проверен: protected health отвечает только с bearer;
-- полный M5 worker gate: 124 tests, compileall и ruff — зелёные.
+- полный M5 worker gate: 126 tests, compileall и ruff — зелёные.
 
 ## Незакрытый release gate M0
 
