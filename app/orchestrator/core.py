@@ -113,6 +113,8 @@ class Orchestrator:
             message=request.message,
             route=route,
             project_path=project_path,
+            project_id=self._metadata_identifier(request.metadata, "workspace_id"),
+            user_id=self._metadata_identifier(request.metadata, "user_id"),
         )
         plan = self.planner.make_plan(context=context, route=route)
         if approved_exchange is not None:
@@ -804,16 +806,25 @@ class Orchestrator:
 
             await self.memory_service.save(
                 MemoryRecord(
-                    kind="interaction",
+                    kind="interaction_summary",
                     session_id=session_id,
-                    user_message=request.message,
-                    assistant_reply=llm_reply,
+                    user_id=self._metadata_identifier(request.metadata, "user_id"),
+                    project_id=self._metadata_identifier(
+                        request.metadata, "workspace_id"
+                    ),
+                    summary=(
+                        f"Request: {request.message.strip()[:1200]}\n"
+                        f"Decision: {llm_reply.strip()[:2400]}"
+                    ),
                     route=route,
-                    metadata=request.metadata,
+                    provenance={
+                        "source": "orchestrator",
+                        "route": route,
+                    },
                     project_path=request.project_path,
                 )
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - memory backend isolation boundary
             logger.warning(
                 "memory_save_failed session_id=%s error=%s",
                 session_id,
@@ -856,6 +867,14 @@ class Orchestrator:
 
         return True
 
+    @staticmethod
+    def _metadata_identifier(metadata: dict[str, Any], key: str) -> str | None:
+        value = metadata.get(key)
+        if not isinstance(value, str):
+            return None
+        value = value.strip()
+        return value[:200] or None
+
     async def _maybe_run_code_verifier(
         self,
         *,
@@ -880,7 +899,7 @@ class Orchestrator:
 
         try:
             result = await self.code_verifier.verify()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - verifier isolation boundary
             logger.warning(
                 "code_verifier_failed session_id=%s error=%s",
                 session_id,

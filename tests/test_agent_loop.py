@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 
@@ -36,7 +36,7 @@ class CountingTool(ITool):
     name = "counting_tool"
     description = "Count safe executions"
     read_only = True
-    input_schema = {
+    input_schema: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {"value": {"type": "integer"}},
         "required": ["value"],
@@ -55,7 +55,11 @@ class ExplodingTool(ITool):
     name = "exploding_tool"
     description = "Raise an internal error"
     read_only = True
-    input_schema = {"type": "object", "properties": {}, "additionalProperties": False}
+    input_schema: ClassVar[dict[str, Any]] = {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": False,
+    }
 
     async def run(self, **kwargs: Any) -> dict[str, Any]:
         raise RuntimeError("API_KEY=do-not-expose-this")

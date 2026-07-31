@@ -4,7 +4,8 @@
 
 ## Текущий milestone
 
-`M5 — cross-platform desktop MVP` в работе; первый sidecar/UI slice реализован.
+`M8 — providers, memory и platform hardening` реализован локально. Канонический
+статус всего проекта хранится в `ai-agent-contracts/docs/PROJECT_STATE.md`.
 Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio smoke.
 
 ## Завершено
@@ -59,6 +60,14 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
 - добавлен CI matrix для сборки и smoke-проверки sidecar на Windows x64, Linux x64 и
   macOS arm64; каждый artifact сопровождается SHA-256 checksum;
 - полный M5 worker gate: 126 tests, compileall и ruff — зелёные.
+- worker `0.7.0`: безопасный Handoff trace, bounded diff и проверка base SHA;
+- worker `0.8.0`: общий OpenAI-compatible provider, LM Studio/Ollama presets,
+  capability discovery и отсутствие неявного provider fallback;
+- persistent knowledge вынесена в scoped SQLite/WAL/FTS5 с TTL, provenance,
+  export/delete; сохраняются summaries/decisions, а не raw tool outputs;
+- JSON logs содержат request/run/task IDs; release CI выполняет dependency scan,
+  формирует CycloneDX SBOM и аттестует только tagged artifacts;
+- полный M8 worker gate: 138 tests, compileall и ruff — зелёные.
 
 ## Незакрытый release gate M0
 
@@ -71,18 +80,17 @@ Release tag worker `v0.2.0` всё ещё ожидает ручной LM Studio 
 
 ## Следующий milestone
 
-Продолжение `M5 — cross-platform desktop MVP`:
+Release evidence и эксплуатационная проверка:
 
-1. проверить Rust/Tauri crate нативно на Windows/Linux/macOS CI;
-2. подключить проверенные sidecar artifacts к desktop release workflow;
-3. добавить Tauri integration tests crash/restart и bootstrap auth;
-4. подготовить unsigned packaging smoke, затем signing/notarization secrets;
-5. закрыть protocol minor-version negotiation и high-level task/worktree UX.
+1. выполнить реальный LM Studio/Ollama smoke с загруженными моделями;
+2. запустить опубликованные Windows/Linux/macOS CI и signing/notarization;
+3. выполнить PostgreSQL/MinIO reconnect и backup/restore gate в CI;
+4. провести двухустройственный offline/handoff E2E.
 
 ## Известные gaps
 
-- desktop M5 реализован как функциональный slice, но native packaging/signing ещё не
-  подтверждены на всех трёх ОС; hub, outbox и handoff ещё не реализованы;
+- desktop M5–M7 реализован как функциональный slice, но native packaging/signing ещё
+  не подтверждены на всех трёх ОС;
 - organization/project policy boundaries поддержаны evaluator-ом, но их удалённое
   администрирование появится вместе с hub и OIDC/RBAC;
 - Run API пока ожидает, что desktop сначала явно создаст task worktree, а затем запустит

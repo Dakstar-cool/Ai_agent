@@ -16,7 +16,6 @@ from app.providers.llm.runtime_config import (
 )
 from app.security import configure_bootstrap_token
 
-
 MAX_BOOTSTRAP_BYTES = 8_192
 
 
@@ -37,7 +36,7 @@ def read_bootstrap(stream: TextIO) -> BootstrapConfig:
     except (json.JSONDecodeError, TypeError) as exc:
         raise ValueError("Invalid sidecar bootstrap payload") from exc
     if not isinstance(payload, dict):
-        raise ValueError("Invalid sidecar bootstrap payload")
+        raise TypeError("Invalid sidecar bootstrap payload")
 
     token = payload.get("token")
     host = payload.get("host", "127.0.0.1")
@@ -56,17 +55,17 @@ def _parse_provider(value: object) -> ProviderRuntimeConfig | None:
     if value is None:
         return None
     if not isinstance(value, dict):
-        raise ValueError("Invalid provider bootstrap payload")
+        raise TypeError("Invalid provider bootstrap payload")
     base_url = value.get("baseUrl")
     model = value.get("model")
     api_key = value.get("apiKey")
     remote_opt_in = value.get("remoteOptIn", False)
     if not isinstance(base_url, str) or not isinstance(model, str):
-        raise ValueError("Invalid provider bootstrap payload")
+        raise TypeError("Invalid provider bootstrap payload")
     if api_key is not None and not isinstance(api_key, str):
-        raise ValueError("Invalid provider bootstrap payload")
+        raise TypeError("Invalid provider bootstrap payload")
     if not isinstance(remote_opt_in, bool):
-        raise ValueError("Invalid provider bootstrap payload")
+        raise TypeError("Invalid provider bootstrap payload")
     return ProviderRuntimeConfig(
         base_url=base_url,
         model=model,

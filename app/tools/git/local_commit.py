@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from app.coding.worktree import TaskWorktreeService
 from app.errors import AppError
@@ -10,7 +10,7 @@ from app.tools.base import ITool
 class LocalCommitTool(ITool):
     name = "local_commit"
     description = "Create a local commit for explicit paths in the current task worktree"
-    input_schema = {
+    input_schema: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
             "task_id": {

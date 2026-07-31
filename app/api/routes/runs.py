@@ -5,7 +5,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path as ApiPath, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import Path as ApiPath
 from fastapi.responses import StreamingResponse
 
 from app.api.routes.chat import require_api_key
@@ -26,7 +27,6 @@ from app.state.runtime import (
     get_state_store,
     workspace_id_for_path,
 )
-
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 

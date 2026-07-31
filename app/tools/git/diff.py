@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from app.tools.base import ITool
 from app.tools.git._runner import GitReadOnlyRunner
@@ -12,7 +12,7 @@ class GitDiffTool(ITool):
     name = "git_diff"
     description = "Run read-only git diff"
     read_only = True
-    input_schema = {
+    input_schema: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
             "path": {"type": "string", "description": "Optional workspace-relative path"}

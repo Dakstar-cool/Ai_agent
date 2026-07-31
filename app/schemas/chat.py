@@ -3,7 +3,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
-
 MAX_MESSAGE_LENGTH = 12_000
 MAX_SESSION_ID_LENGTH = 128
 MAX_PROJECT_PATH_LENGTH = 500

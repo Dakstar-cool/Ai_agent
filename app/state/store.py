@@ -18,7 +18,6 @@ from app.runs.models import (
     WorkspaceRecord,
 )
 
-
 SCHEMA_VERSION = 3
 
 
@@ -35,7 +34,7 @@ def _load_object(value: str | None) -> dict[str, Any] | None:
         return None
     loaded = json.loads(value)
     if not isinstance(loaded, dict):
-        raise ValueError("Expected a JSON object in worker state")
+        raise TypeError("Expected a JSON object in worker state")
     return loaded
 
 

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from app.errors import ToolInputError
 from app.tools.base import ITool
 from app.tools.path_safety import (
     IGNORED_DIRS,
     WorkspacePathPolicy,
-    iter_safe_files,
     is_probably_binary_file,
+    iter_safe_files,
 )
 
 
@@ -19,7 +19,7 @@ class SearchProjectTool(ITool):
         "Search text in project files while skipping protected and ignored directories"
     )
     read_only = True
-    input_schema = {
+    input_schema: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
             "query": {"type": "string", "minLength": 1},

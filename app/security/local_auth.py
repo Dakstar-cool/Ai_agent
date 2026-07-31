@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from threading import Lock
 
-
 _lock = Lock()
 _bootstrap_token: str | None = None
 

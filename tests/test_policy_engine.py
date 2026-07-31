@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 
+from app.orchestrator.execution.tool_dispatcher import ToolDispatcher
 from app.policy import (
     AutonomyMode,
     PolicyAction,
@@ -13,7 +14,6 @@ from app.policy import (
     PolicyUsage,
     RunPolicy,
 )
-from app.orchestrator.execution.tool_dispatcher import ToolDispatcher
 from app.providers.llm.models import ToolCall
 from app.tools.base import ITool
 from app.tools.files.write_file import WriteFileTool
@@ -23,7 +23,7 @@ from app.tools.registry import ToolRegistry
 class ReadTool(ITool):
     name = "read"
     description = "read"
-    input_schema = {"type": "object"}
+    input_schema: ClassVar[dict[str, Any]] = {"type": "object"}
     read_only = True
 
     async def run(self, **kwargs: Any) -> dict[str, Any]:
@@ -33,7 +33,7 @@ class ReadTool(ITool):
 class MutationTool(ITool):
     name = "write"
     description = "write"
-    input_schema = {"type": "object"}
+    input_schema: ClassVar[dict[str, Any]] = {"type": "object"}
     mutation_kind = "write"
 
     async def run(self, **kwargs: Any) -> dict[str, Any]:

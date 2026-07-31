@@ -2,7 +2,7 @@
 
 Локальный каркас AI-агента на FastAPI с отдельным orchestration layer, LM Studio как текущим LLM backend, опциональной локальной памятью и безопасным набором инструментов для работы с проектом.
 
-Worker `0.7.0` содержит безопасный tool-calling foundation, persistent Run API,
+Worker `0.8.0` содержит безопасный tool-calling foundation, persistent Run API,
 изолированный coding workflow и policy-controlled autonomy modes.
 Один LLM-шаг Planner выполняется через ограниченный loop, автоматически запускающий
 только read-only tools. Runs, events, sessions и approvals сохраняются в SQLite/WAL.
@@ -13,8 +13,8 @@ Worker `0.7.0` содержит безопасный tool-calling foundation, pe
 - Опциональная авторизация через `X-API-Key` или `Authorization: Bearer ...`.
 - Request ID, базовый rate limit, структурированные ошибки и логирование в консоль/файл.
 - Orchestrator Core с router, context builder, planner, dispatcher, verifier, result synthesizer и persistent session manager.
-- LM Studio provider через OpenAI-compatible endpoint `/chat/completions`.
-- Абстракция памяти `IMemoryService`, `NoOpMemoryService` по умолчанию и JSONL backend при включении.
+- Общий OpenAI-compatible provider, локальные пресеты LM Studio/Ollama и capability discovery.
+- Абстракция памяти `IMemoryService`, `NoOpMemoryService` по умолчанию и scoped SQLite/FTS5 backend с TTL, provenance, export/delete.
 - Фильтр чувствительных данных перед сохранением памяти.
 - Tool registry и безопасные tools для файлов, поиска по проекту, read-only git и ограниченного запуска команд.
 - Типизированные `LLMResponse`, `ToolCall`, `ToolResult`, JSON Schema tools и ограниченный LLM-driven execution loop.
@@ -258,11 +258,14 @@ Invoke-RestMethod `
 | `RATE_LIMIT_REQUESTS_PER_MINUTE` | `120` | Лимит запросов в минуту на client host. |
 | `LOG_LEVEL` | `INFO` | Уровень логирования. |
 | `LOG_TO_FILE` | `true` | Писать логи в файл. |
+| `TELEMETRY_ENABLED` | `false` | Резерв opt-in: worker не отправляет telemetry автоматически. |
 | `LMSTUDIO_BASE_URL` | `http://127.0.0.1:1234/v1` | OpenAI-compatible endpoint LM Studio. |
 | `LMSTUDIO_MODEL` | `google/gemma-4-e4b` | Модель для запросов к LM Studio. |
 | `ENABLE_MEMORY` | `false` | Включает сохранение и recall памяти. |
-| `MEMORY_BACKEND` | `noop` | Сейчас поддерживаются `noop` и `json`. |
+| `MEMORY_BACKEND` | `noop` | Поддерживаются `noop`, legacy `json` и `sqlite`/FTS5. |
 | `MEMORY_FILE_PATH` | `data/memory/interactions.jsonl` | JSONL-файл памяти. |
+| `MEMORY_SQLITE_PATH` | OS app-data/state | SQLite/FTS5 summaries/decisions без raw tool outputs. |
+| `MEMORY_TTL_DAYS` | `90` | Срок хранения persistent knowledge. |
 | `SESSION_MAX_SESSIONS` | `200` | Максимум in-memory сессий. |
 | `SESSION_MAX_MESSAGES` | `50` | Максимум сообщений в истории сессии. |
 | `STATE_DB_PATH` | OS app-data/state | SQLite/WAL с runs, events, sessions и approvals. |
@@ -305,12 +308,12 @@ ENABLE_MEMORY=false
 MEMORY_BACKEND=noop
 ```
 
-Чтобы включить локальную JSONL-память:
+Чтобы включить scoped SQLite/FTS5-память:
 
 ```env
 ENABLE_MEMORY=true
-MEMORY_BACKEND=json
-MEMORY_FILE_PATH=data/memory/interactions.jsonl
+MEMORY_BACKEND=sqlite
+MEMORY_TTL_DAYS=90
 ```
 
 Перед сохранением проверяются сообщение пользователя, metadata и ответ модели. Если найдено что-то похожее на API keys, passwords, tokens, authorization headers или private keys, запись в память пропускается.

@@ -31,7 +31,7 @@ class GitReadOnlyRunner:
             )
             timed_out = False
             exit_code = process.returncode
-        except asyncio.TimeoutError:
+        except TimeoutError:
             process.kill()
             stdout, stderr = await process.communicate()
             timed_out = True

@@ -94,16 +94,16 @@ class RunPolicy(BaseModel):
         return normalized
 
     @model_validator(mode="after")
-    def validate_grant(self) -> "RunPolicy":
+    def validate_grant(self) -> RunPolicy:
         if self.mode is not AutonomyMode.SAFE and self.ttl_seconds == 0:
             raise ValueError("supervised and autonomous policies require a TTL")
         return self
 
     @classmethod
-    def safe(cls) -> "RunPolicy":
+    def safe(cls) -> RunPolicy:
         return cls()
 
-    def activate(self, now: datetime | None = None) -> "RunPolicy":
+    def activate(self, now: datetime | None = None) -> RunPolicy:
         return self.model_copy(update={"issued_at": now or datetime.now(UTC)})
 
     def is_expired(self, now: datetime) -> bool:

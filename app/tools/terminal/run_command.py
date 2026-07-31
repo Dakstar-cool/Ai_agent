@@ -3,7 +3,7 @@ import os
 import shlex
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from app.errors import ToolInputError
 from app.tools.base import ITool
@@ -13,7 +13,7 @@ from app.tools.path_safety import resolve_workspace_path
 class RunCommandTool(ITool):
     name = "run_command"
     description = "Execute an allow-listed command without a shell"
-    input_schema = {
+    input_schema: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
             "command": {"type": "string"},
@@ -82,7 +82,7 @@ class RunCommandTool(ITool):
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(), timeout=self.timeout_seconds
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             process.kill()
             stdout, stderr = await process.communicate()
             duration_ms = round((time.perf_counter() - started) * 1000, 2)
@@ -148,8 +148,7 @@ class RunCommandTool(ITool):
 
     def _normalize_command_name(self, value: str) -> str:
         name = Path(value).name.lower()
-        if name.endswith(".exe"):
-            name = name[:-4]
+        name = name.removesuffix(".exe")
         return name
 
     def _validate_command(self, args: list[str]) -> None:
@@ -228,9 +227,7 @@ class RunCommandTool(ITool):
             )
         if subcommand == "log":
             return all(
-                item == "--oneline"
-                or item.startswith("-n")
-                or item.startswith("--max-count=")
+                item == "--oneline" or item.startswith(("-n", "--max-count="))
                 for item in rest
             )
         return False

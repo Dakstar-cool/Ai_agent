@@ -11,7 +11,6 @@ from app.main import create_app
 from app.security import configure_bootstrap_token
 from app.sidecar import create_loopback_socket, read_bootstrap
 
-
 TOKEN = base64.urlsafe_b64encode(bytes(range(32))).decode("ascii").rstrip("=")
 
 

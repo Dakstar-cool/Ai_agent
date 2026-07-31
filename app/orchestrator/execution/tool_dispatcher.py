@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import logging
 import json
+import logging
 from hashlib import sha256
 from typing import Any
 
@@ -164,7 +164,7 @@ class ToolDispatcher:
                     }
                 },
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - untrusted tool isolation boundary
             logger.warning(
                 "tool_call_failed tool=%s error_type=%s",
                 tool_call.name,

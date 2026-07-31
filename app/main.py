@@ -9,9 +9,12 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 import app.api.routes.runs as run_routes
+from app import __version__
 from app.api.routes.chat import close_orchestrator, require_api_key
 from app.api.routes.chat import router as chat_router
 from app.api.routes.coding import router as coding_router
+from app.api.routes.memory import router as memory_router
+from app.api.routes.providers import router as providers_router
 from app.config.settings import get_settings
 from app.contracts import PROTOCOL_VERSION
 from app.errors import AppError
@@ -51,6 +54,7 @@ def create_app() -> FastAPI:
         log_dir=settings.log_dir,
         log_file_name=settings.log_file_name,
         log_to_file=settings.log_to_file,
+        json_logs=settings.log_json,
     )
 
     @asynccontextmanager
@@ -65,6 +69,8 @@ def create_app() -> FastAPI:
     app.include_router(chat_router, prefix="/api/v1")
     app.include_router(run_routes.router, prefix="/api/v1")
     app.include_router(coding_router, prefix="/api/v1")
+    app.include_router(memory_router, prefix="/api/v1")
+    app.include_router(providers_router, prefix="/api/v1")
 
     @app.middleware("http")
     async def add_request_context(request: Request, call_next):
@@ -166,7 +172,7 @@ def create_app() -> FastAPI:
             "status": "ok",
             "env": settings.app_env,
             "component": "ai-agent-worker",
-            "version": "0.5.0",
+            "version": __version__,
             "protocol_version": PROTOCOL_VERSION,
         }
 

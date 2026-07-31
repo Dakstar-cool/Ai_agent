@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from threading import Lock
 from urllib.parse import urlsplit
 
-
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
@@ -15,7 +14,7 @@ class ProviderRuntimeConfig:
     api_key: str | None = field(default=None, repr=False)
     remote_opt_in: bool = False
 
-    def validate(self) -> "ProviderRuntimeConfig":
+    def validate(self) -> ProviderRuntimeConfig:
         parsed = urlsplit(self.base_url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise ValueError("Provider URL must be HTTP or HTTPS")

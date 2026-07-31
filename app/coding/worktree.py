@@ -13,7 +13,6 @@ from app.state.runtime import workspace_id_for_path
 from app.state.store import SQLiteStateStore
 from app.tools.path_safety import resolve_workspace_path
 
-
 TASK_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 COMMIT_PATTERN = re.compile(r"^[a-fA-F0-9]{7,64}$")
 

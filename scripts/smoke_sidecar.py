@@ -14,7 +14,6 @@ import urllib.request
 from pathlib import Path
 from typing import IO
 
-
 STARTUP_TIMEOUT_SECONDS = 30.0
 
 

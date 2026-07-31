@@ -18,7 +18,6 @@ from app.policy.models import (
 from app.tools.base import ITool
 from app.tools.path_safety import is_protected_relative_path
 
-
 DESTRUCTIVE_TOOL_NAMES = frozenset(
     {"git_reset", "git_clean", "git_force_checkout", "destructive_git"}
 )
@@ -179,9 +178,12 @@ class PolicyEngine:
             return None
         if boundary.allowed_tools is not None and tool.name not in boundary.allowed_tools:
             return "tool_blocked_by_policy"
-        if boundary.path_globs is not None and paths:
-            if not self._paths_allowed(paths, boundary.path_globs):
-                return "path_blocked_by_policy"
+        if (
+            boundary.path_globs is not None
+            and paths
+            and not self._paths_allowed(paths, boundary.path_globs)
+        ):
+            return "path_blocked_by_policy"
         if tool.network_access and not boundary.network_allowed:
             return "network_blocked_by_policy"
         if (

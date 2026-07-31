@@ -7,6 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.policy import RunPolicy
 from app.runs.models import (
     RunEventRecord,
     RunRecord,
@@ -14,7 +15,6 @@ from app.runs.models import (
     TaskWorktreeRecord,
     WorkspaceRecord,
 )
-from app.policy import RunPolicy
 from app.schemas.chat import MAX_MESSAGE_LENGTH, MAX_METADATA_BYTES
 
 
@@ -27,7 +27,7 @@ class CreateRunRequest(BaseModel):
     policy: RunPolicy = Field(default_factory=RunPolicy.safe)
 
     @model_validator(mode="after")
-    def validate_metadata_size(self) -> "CreateRunRequest":
+    def validate_metadata_size(self) -> CreateRunRequest:
         size = len(json.dumps(self.metadata, ensure_ascii=False).encode("utf-8"))
         if size > MAX_METADATA_BYTES:
             raise ValueError(f"metadata must be at most {MAX_METADATA_BYTES} bytes")
@@ -46,7 +46,7 @@ class RunResponse(BaseModel):
     error: dict[str, Any] | None = None
 
     @classmethod
-    def from_record(cls, record: RunRecord) -> "RunResponse":
+    def from_record(cls, record: RunRecord) -> RunResponse:
         return cls(
             id=record.id,
             workspace_id=record.workspace_id,
@@ -69,7 +69,7 @@ class RunEventResponse(BaseModel):
     payload: dict[str, Any]
 
     @classmethod
-    def from_record(cls, record: RunEventRecord) -> "RunEventResponse":
+    def from_record(cls, record: RunEventRecord) -> RunEventResponse:
         return cls(
             id=record.id,
             run_id=record.run_id,
@@ -95,7 +95,7 @@ class WorkspaceResponse(BaseModel):
     updated_at: datetime
 
     @classmethod
-    def from_record(cls, record: WorkspaceRecord) -> "WorkspaceResponse":
+    def from_record(cls, record: WorkspaceRecord) -> WorkspaceResponse:
         return cls(
             id=record.id,
             name=record.name,
@@ -143,7 +143,7 @@ class TaskWorktreeResponse(BaseModel):
     created_at: datetime
 
     @classmethod
-    def from_record(cls, record: TaskWorktreeRecord) -> "TaskWorktreeResponse":
+    def from_record(cls, record: TaskWorktreeRecord) -> TaskWorktreeResponse:
         return cls(
             task_id=record.task_id,
             source_workspace_id=record.source_workspace_id,
@@ -168,7 +168,7 @@ class FinalizeTaskWorktreeRequest(BaseModel):
     paths: list[str] = Field(default_factory=list, max_length=100)
 
     @model_validator(mode="after")
-    def validate_commit_fields(self) -> "FinalizeTaskWorktreeRequest":
+    def validate_commit_fields(self) -> FinalizeTaskWorktreeRequest:
         if self.create_commit and (self.commit_message is None or not self.paths):
             raise ValueError(
                 "commit_message and paths are required when create_commit=true"

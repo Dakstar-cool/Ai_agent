@@ -10,12 +10,14 @@ from pydantic import ValidationError
 
 from app.errors import LLMProviderBadResponseError, LLMProviderUnavailableError
 from app.providers.llm.base import ILLMProvider
-from app.providers.llm.models import LLMResponse, ToolCall
+from app.providers.llm.models import LLMResponse, ProviderCapabilities, ToolCall
 
 logger = logging.getLogger(__name__)
 
 
-class LMStudioProvider(ILLMProvider):
+class OpenAICompatibleProvider(ILLMProvider):
+    provider_name = "openai-compatible"
+
     def __init__(
         self,
         base_url: str,
@@ -185,6 +187,61 @@ class LMStudioProvider(ILLMProvider):
             finish_reason=finish_reason,
         )
 
+    async def discover_capabilities(self) -> ProviderCapabilities:
+        try:
+            response = await self._client.get(f"{self.base_url}/models")
+            response.raise_for_status()
+            payload = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise LLMProviderUnavailableError(
+                message="Provider capability discovery failed",
+                details={
+                    "provider": self.provider_name,
+                    "model": self.model,
+                    "reason": exc.__class__.__name__,
+                },
+            ) from exc
+
+        entries = payload.get("data", []) if isinstance(payload, dict) else []
+        if not isinstance(entries, list):
+            entries = []
+        available_models = [
+            str(entry["id"])[:200]
+            for entry in entries
+            if isinstance(entry, dict) and isinstance(entry.get("id"), str)
+        ][:500]
+        selected = next(
+            (
+                entry
+                for entry in entries
+                if isinstance(entry, dict) and entry.get("id") == self.model
+            ),
+            None,
+        )
+        context_limit = self._context_limit(selected)
+        return ProviderCapabilities(
+            provider=self.provider_name,
+            model=self.model,
+            tools=True,
+            streaming=True,
+            context_limit=context_limit,
+            available_models=available_models,
+        )
+
+    @staticmethod
+    def _context_limit(value: Any) -> int | None:
+        if not isinstance(value, dict):
+            return None
+        for key in (
+            "context_length",
+            "max_context_length",
+            "loaded_context_length",
+        ):
+            candidate = value.get(key)
+            if isinstance(candidate, int) and candidate > 0:
+                return candidate
+        return None
+
     def _parse_tool_calls(self, raw_tool_calls: Any) -> list[ToolCall]:
         if raw_tool_calls is None:
             return []
@@ -241,3 +298,7 @@ class LMStudioProvider(ILLMProvider):
                 ) from exc
 
         return tool_calls
+
+
+class LMStudioProvider(OpenAICompatibleProvider):
+    provider_name = "lmstudio"

@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+import asyncio
 import subprocess
 from pathlib import Path
 
@@ -10,15 +9,13 @@ from app.tools.git.log import GitLogTool
 from app.tools.git.status import GitStatusTool
 
 
+def _git_init(path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=path, check=True, capture_output=True)
+
+
 @pytest.mark.asyncio
 async def test_git_status_is_read_only(tmp_path) -> None:
-    subprocess.run(
-        ["git", "init"],
-        cwd=tmp_path,
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    await asyncio.to_thread(_git_init, tmp_path)
     (tmp_path / "note.txt").write_text("hello", encoding="utf-8")
 
     result = await GitStatusTool(root_dir=tmp_path).run()
@@ -29,13 +26,7 @@ async def test_git_status_is_read_only(tmp_path) -> None:
 
 @pytest.mark.asyncio
 async def test_git_diff_is_read_only(tmp_path) -> None:
-    subprocess.run(
-        ["git", "init"],
-        cwd=tmp_path,
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    await asyncio.to_thread(_git_init, tmp_path)
 
     result = await GitDiffTool(root_dir=tmp_path).run()
 

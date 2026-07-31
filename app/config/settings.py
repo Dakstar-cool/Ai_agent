@@ -6,7 +6,6 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
@@ -21,6 +20,8 @@ class Settings(BaseSettings):
     log_dir: str = "logs"
     log_file_name: str = "app.log"
     log_to_file: bool = True
+    log_json: bool = True
+    telemetry_enabled: bool = False
 
     lmstudio_base_url: str = "http://127.0.0.1:1234/v1"
     lmstudio_model: str = "google/gemma-4-e4b"
@@ -28,8 +29,10 @@ class Settings(BaseSettings):
     enable_memory: bool = False
     memory_backend: str = "noop"
     memory_file_path: str = "data/memory/interactions.jsonl"
+    memory_sqlite_path: str | None = None
     memory_recall_limit: int = 5
     memory_max_recall_limit: int = 20
+    memory_ttl_days: int = Field(default=90, ge=1, le=3_650)
 
     session_max_sessions: int = 200
     session_max_messages: int = 50
@@ -91,6 +94,11 @@ class Settings(BaseSettings):
         if self.task_worktree_root and self.task_worktree_root.strip():
             return self.resolve_project_path(self.task_worktree_root)
         return self.resolve_state_db_path().parent / "worktrees"
+
+    def resolve_memory_db_path(self) -> Path:
+        if self.memory_sqlite_path and self.memory_sqlite_path.strip():
+            return self.resolve_project_path(self.memory_sqlite_path)
+        return self.resolve_state_db_path().parent / "knowledge.sqlite3"
 
     def allowed_tool_commands(self) -> set[str]:
         return {

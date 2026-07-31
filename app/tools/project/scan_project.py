@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from app.errors import ToolInputError
 from app.tools.base import ITool
@@ -12,7 +12,7 @@ class ScanProjectTool(ITool):
     name = "scan_project"
     description = "List project files while skipping protected and ignored directories"
     read_only = True
-    input_schema = {
+    input_schema: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
             "path": {"type": "string", "default": "."},

@@ -15,11 +15,15 @@ class ContextBuilder:
         message: str,
         route: str,
         project_path: str | None = None,
+        project_id: str | None = None,
+        user_id: str | None = None,
     ) -> dict[str, Any]:
         memories = await self.memory_service.recall(
             MemoryRecallQuery(
                 text=message,
                 session_id=session.session_id,
+                user_id=user_id,
+                project_id=project_id,
                 project_path=project_path,
                 route=route,
             )

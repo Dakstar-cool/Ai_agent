@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import re
 
-
 _SENSITIVE_RE = re.compile(
     r"("
     r"api_key\s*=|"

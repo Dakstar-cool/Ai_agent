@@ -3,7 +3,11 @@ from __future__ import annotations
 import pytest
 
 from app.orchestrator.core import Orchestrator
-from app.providers.memory.models import MemoryRecallItem, MemoryRecallQuery, MemoryRecord
+from app.providers.memory.models import (
+    MemoryRecallItem,
+    MemoryRecallQuery,
+    MemoryRecord,
+)
 from app.providers.memory.policy import contains_sensitive_data
 from app.schemas.chat import ChatRequest
 from app.tools.registry import ToolRegistry

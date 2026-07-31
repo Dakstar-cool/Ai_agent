@@ -3,7 +3,8 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Path as ApiPath, status
+from fastapi import APIRouter, Depends, status
+from fastapi import Path as ApiPath
 
 from app.api.routes.chat import require_api_key
 from app.coding.worktree import TaskWorktreeService
@@ -16,7 +17,6 @@ from app.schemas.runs import (
     TaskWorktreeResponse,
 )
 from app.state.runtime import get_state_store
-
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 

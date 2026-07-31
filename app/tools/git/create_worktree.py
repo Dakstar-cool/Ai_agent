@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import Any
+from typing import Any, ClassVar
 
 from app.coding.worktree import TaskWorktreeService
 from app.errors import AppError
@@ -11,7 +11,7 @@ from app.tools.base import ITool
 class CreateTaskWorktreeTool(ITool):
     name = "create_task_worktree"
     description = "Create an isolated agent/<task-id> branch and git worktree"
-    input_schema = {
+    input_schema: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
             "task_id": {

@@ -5,7 +5,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-
 ToolResultStatus = Literal["ok", "failed", "approval_required"]
 
 

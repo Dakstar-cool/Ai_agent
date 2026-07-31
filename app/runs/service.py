@@ -5,7 +5,7 @@ import logging
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from app.errors import AppError
 from app.orchestrator.core import Orchestrator
@@ -13,7 +13,7 @@ from app.policy import RunPolicy
 from app.runs.models import RunRecord, RunState
 from app.schemas.chat import ChatRequest, ChatResponse, ExecutionStep
 from app.state.store import SQLiteStateStore
-
+from app.utils.request_context import reset_execution_context, set_execution_context
 
 logger = logging.getLogger(__name__)
 
@@ -219,6 +219,12 @@ class RunService:
 
     async def _execute(self, run_id: str, *, approval_id: str | None) -> None:
         run = self.state_store.require_run(run_id)
+        raw_task_id = run.metadata.get("task_id")
+        try:
+            task_id = str(UUID(raw_task_id)) if isinstance(raw_task_id, str) else None
+        except ValueError:
+            task_id = None
+        context_tokens = set_execution_context(run_id, task_id)
         workspace_lock = self._workspace_locks.setdefault(
             run.workspace_id, asyncio.Lock()
         )
@@ -251,6 +257,7 @@ class RunService:
                     for key, value in run.metadata.items()
                     if not key.startswith("_internal_")
                 }
+                metadata["workspace_id"] = run.workspace_id
                 message = run.message
                 if approval_id is not None:
                     metadata["approve_tool_call_id"] = approval_id
@@ -303,6 +310,7 @@ class RunService:
             )
         finally:
             self._tasks.pop(run_id, None)
+            reset_execution_context(context_tokens)
 
     async def _finish_response(
         self,

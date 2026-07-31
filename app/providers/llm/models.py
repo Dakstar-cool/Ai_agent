@@ -6,6 +6,17 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
+class ProviderCapabilities(BaseModel):
+    schema_version: Literal["0.3.0"] = "0.3.0"
+    provider: str
+    model: str
+    tools: bool
+    streaming: bool
+    context_limit: int | None = Field(default=None, ge=1)
+    available_models: list[str] = Field(default_factory=list)
+    discovered: bool = True
+
+
 class ToolCall(BaseModel):
     id: str = Field(min_length=1)
     name: str = Field(min_length=1)

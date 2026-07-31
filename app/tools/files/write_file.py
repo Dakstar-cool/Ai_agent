@@ -1,9 +1,9 @@
 import difflib
-from hashlib import sha256
 import os
-from pathlib import Path
 import tempfile
-from typing import Any
+from hashlib import sha256
+from pathlib import Path
+from typing import Any, ClassVar
 
 from app.errors import AppError, ToolInputError
 from app.tools.base import ITool
@@ -13,7 +13,7 @@ from app.tools.path_safety import resolve_workspace_path
 class WriteFileTool(ITool):
     name = "write_file"
     description = "Write text to a UTF-8 file"
-    input_schema = {
+    input_schema: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
             "path": {"type": "string", "description": "Workspace-relative file path"},

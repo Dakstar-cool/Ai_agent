@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from collections.abc import Iterator
 
 from app.errors import ToolInputError
-
 
 PROTECTED_PATH_PARTS = frozenset(
     {

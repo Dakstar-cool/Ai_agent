@@ -5,6 +5,7 @@ from pathlib import Path
 from app.config.settings import Settings
 from app.providers.memory.factory import build_memory_service
 from app.providers.memory.json_file import JsonFileMemoryService
+from app.providers.memory.sqlite_fts import SQLiteFTSMemoryService
 
 
 def test_settings_resolve_project_path_returns_absolute() -> None:
@@ -38,6 +39,19 @@ def test_memory_factory_uses_resolved_absolute_path() -> None:
     assert str(service.storage_path).endswith(
         str(Path("data") / "memory" / "test.jsonl")
     )
+
+
+def test_sqlite_memory_factory_uses_app_state_by_default(tmp_path) -> None:
+    settings = Settings(
+        enable_memory=True,
+        memory_backend="sqlite",
+        state_db_path=str(tmp_path / "worker.sqlite3"),
+    )
+
+    service = build_memory_service(settings)
+
+    assert isinstance(service, SQLiteFTSMemoryService)
+    assert service.storage_path == (tmp_path / "knowledge.sqlite3").resolve()
 
 
 def test_env_example_contains_public_settings() -> None:
