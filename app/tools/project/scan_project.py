@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from app.errors import ToolInputError
 from app.tools.base import ITool
@@ -11,6 +11,15 @@ from app.tools.path_safety import IGNORED_DIRS, WorkspacePathPolicy, iter_safe_f
 class ScanProjectTool(ITool):
     name = "scan_project"
     description = "List project files while skipping protected and ignored directories"
+    read_only = True
+    input_schema: ClassVar[dict[str, Any]] = {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "default": "."},
+            "max_files": {"type": "integer", "minimum": 1, "maximum": 500},
+        },
+        "additionalProperties": False,
+    }
 
     def __init__(self, root_dir: str | Path, max_files: int = 500) -> None:
         self.policy = WorkspacePathPolicy(Path(root_dir))
@@ -19,8 +28,14 @@ class ScanProjectTool(ITool):
     async def run(self, **kwargs: Any) -> dict[str, Any]:
         raw_path = kwargs.get("path", ".")
         max_files = kwargs.get("max_files", self.max_files)
-        if not isinstance(max_files, int) or max_files <= 0:
-            raise ToolInputError("max_files must be a positive integer")
+        if (
+            not isinstance(max_files, int)
+            or max_files <= 0
+            or max_files > self.max_files
+        ):
+            raise ToolInputError(
+                f"max_files must be an integer from 1 to {self.max_files}"
+            )
 
         root = self.policy.resolve(raw_path, must_exist=True)
         if not root.is_dir():

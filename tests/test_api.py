@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -9,7 +10,7 @@ from app.schemas.chat import ChatResponse
 
 
 class FakeOrchestrator:
-    async def handle(self, request):
+    async def handle(self, request, **_kwargs):
         return ChatResponse(
             session_id=request.session_id or "test-session",
             route="general",
@@ -39,9 +40,13 @@ def test_health_returns_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+    assert response.json()["version"] == "0.8.7"
+    assert response.json()["protocol_version"] == "0.3.0"
 
 
-def test_chat_works_without_api_key_when_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_chat_works_without_api_key_when_not_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("API_KEY", "")
     client = _client(monkeypatch)
 
@@ -128,3 +133,57 @@ def test_rate_limit_resets_after_window() -> None:
         )
         is True
     )
+
+
+def test_provider_capabilities_are_exposed_without_provider_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_get(self, url):
+        return httpx.Response(
+            200,
+            request=httpx.Request("GET", url),
+            json={"data": [{"id": "demo", "context_length": 4096}]},
+        )
+
+    monkeypatch.setenv("LMSTUDIO_MODEL", "demo")
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    client = _client(monkeypatch)
+
+    response = client.get("/api/v1/providers/capabilities")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "schema_version": "0.3.0",
+        "provider": "lmstudio",
+        "model": "demo",
+        "tools": True,
+        "streaming": True,
+        "context_limit": 4096,
+        "available_models": ["demo"],
+        "discovered": True,
+    }
+    assert "api_key" not in response.text.casefold()
+
+
+def test_memory_export_and_delete_require_explicit_scope(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.setenv("ENABLE_MEMORY", "true")
+    monkeypatch.setenv("MEMORY_BACKEND", "sqlite")
+    monkeypatch.setenv("MEMORY_SQLITE_PATH", str(tmp_path / "memory.sqlite3"))
+    client = _client(monkeypatch)
+
+    invalid = client.post("/api/v1/memory/export", json={"schema_version": "0.3.0"})
+    exported = client.post(
+        "/api/v1/memory/export",
+        json={"schema_version": "0.3.0", "project_id": "project-a"},
+    )
+    deleted = client.request(
+        "DELETE",
+        "/api/v1/memory",
+        json={"schema_version": "0.3.0", "project_id": "project-a"},
+    )
+
+    assert invalid.status_code == 422
+    assert exported.json() == {"schema_version": "0.3.0", "items": []}
+    assert deleted.json() == {"schema_version": "0.3.0", "deleted": 0}

@@ -3,7 +3,11 @@ from __future__ import annotations
 import pytest
 
 from app.orchestrator.core import Orchestrator
-from app.providers.memory.models import MemoryRecallItem, MemoryRecallQuery, MemoryRecord
+from app.providers.memory.models import (
+    MemoryRecallItem,
+    MemoryRecallQuery,
+    MemoryRecord,
+)
 from app.providers.memory.policy import contains_sensitive_data
 from app.schemas.chat import ChatRequest
 from app.tools.registry import ToolRegistry
@@ -28,7 +32,9 @@ class RecordingMemoryService:
         self.saved.append(item)
 
 
-async def _run(message: str, *, metadata: dict | None = None, reply: str = "ok") -> RecordingMemoryService:
+async def _run(
+    message: str, *, metadata: dict | None = None, reply: str = "ok"
+) -> RecordingMemoryService:
     memory = RecordingMemoryService()
     orchestrator = Orchestrator(
         llm_provider=FakeLLMProvider(reply),
@@ -45,6 +51,9 @@ def test_contains_sensitive_data_detects_secret_patterns() -> None:
     assert contains_sensitive_data("API_KEY=abc") is True
     assert contains_sensitive_data({"nested": {"access_token": "abc"}}) is True
     assert contains_sensitive_data("plain project note") is False
+    assert (
+        contains_sensitive_data({"approve_tool_call_id": "approval-capability"}) is True
+    )
 
 
 @pytest.mark.asyncio

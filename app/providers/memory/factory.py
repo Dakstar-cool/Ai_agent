@@ -6,6 +6,7 @@ from app.config.settings import Settings
 from app.providers.memory.base import IMemoryService
 from app.providers.memory.json_file import JsonFileMemoryService
 from app.providers.memory.noop import NoOpMemoryService
+from app.providers.memory.sqlite_fts import SQLiteFTSMemoryService
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,19 @@ def build_memory_service(settings: Settings) -> IMemoryService:
             storage_path=str(resolved_storage_path),
             recall_limit=settings.memory_recall_limit,
             max_recall_limit=settings.memory_max_recall_limit,
+        )
+
+    if settings.memory_backend == "sqlite":
+        resolved_storage_path = settings.resolve_memory_db_path()
+        logger.info(
+            "memory_service_initialized backend=sqlite enabled=true recall_limit=%s",
+            settings.memory_recall_limit,
+        )
+        return SQLiteFTSMemoryService(
+            storage_path=str(resolved_storage_path),
+            recall_limit=settings.memory_recall_limit,
+            max_recall_limit=settings.memory_max_recall_limit,
+            ttl_days=settings.memory_ttl_days,
         )
 
     logger.warning(

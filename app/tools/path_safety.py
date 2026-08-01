@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from collections.abc import Iterator
 
 from app.errors import ToolInputError
-
 
 PROTECTED_PATH_PARTS = frozenset(
     {
@@ -25,6 +24,27 @@ PROTECTED_PATH_PARTS = frozenset(
 )
 
 IGNORED_DIRS = PROTECTED_PATH_PARTS | frozenset({".idea", "ai_agentv1.egg-info"})
+PROTECTED_FILE_PATTERNS = (
+    ".env.*",
+    ".npmrc",
+    ".pypirc",
+    "credentials",
+    "credentials.*",
+    "id_rsa",
+    "id_ed25519",
+    "secrets.*",
+)
+
+
+def is_protected_relative_path(value: str) -> bool:
+    normalized = value.replace("\\", "/")
+    parts = tuple(part.casefold() for part in Path(normalized).parts)
+    if any(part in PROTECTED_PATH_PARTS for part in parts):
+        return True
+    return any(
+        any(Path(part).match(pattern) for pattern in PROTECTED_FILE_PATTERNS)
+        for part in parts
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +72,20 @@ class WorkspacePathPolicy:
         candidate = Path(value).expanduser()
         if not candidate.is_absolute():
             candidate = root / candidate
+        candidate = Path(os.path.abspath(candidate))
+
+        if not candidate.is_relative_to(root):
+            raise ToolInputError(
+                "Path is outside the allowed workspace",
+                details={"path": str(candidate), "workspace_root": str(root)},
+            )
+
+        linked_part = self.first_link_part(candidate)
+        if linked_part is not None:
+            raise ToolInputError(
+                "Symbolic links and junctions are not allowed in tool paths",
+                details={"path": str(candidate), "linked_part": linked_part},
+            )
 
         try:
             resolved = candidate.resolve(strict=must_exist)
@@ -76,6 +110,25 @@ class WorkspacePathPolicy:
 
         return resolved
 
+    def first_link_part(self, path: Path) -> str | None:
+        absolute = Path(os.path.abspath(path))
+        try:
+            relative = absolute.relative_to(self.root_dir)
+        except ValueError:
+            return None
+
+        current = self.root_dir
+        for part in relative.parts:
+            current /= part
+            try:
+                is_junction = current.is_junction()
+                is_symlink = current.is_symlink()
+            except OSError:
+                return part
+            if is_symlink or is_junction:
+                return part
+        return None
+
     def first_protected_part(self, path: Path) -> str | None:
         resolved = path.resolve(strict=False)
         try:
@@ -84,13 +137,15 @@ class WorkspacePathPolicy:
             return None
 
         for part in relative.parts:
-            if part.lower() in self.protected_parts:
+            if part.lower() in self.protected_parts or is_protected_relative_path(part):
                 return part
         return None
 
     def is_ignored_path(
         self, path: Path, *, ignored_dirs: set[str] | frozenset[str] = IGNORED_DIRS
     ) -> bool:
+        if self.first_link_part(path) is not None:
+            return True
         ignored = {item.lower() for item in ignored_dirs} | self.protected_parts
         try:
             relative = path.resolve(strict=False).relative_to(self.root_dir)
@@ -134,7 +189,9 @@ def iter_safe_files(
         dirnames[:] = [
             dirname
             for dirname in dirnames
-            if not policy.is_ignored_path(current_path / dirname, ignored_dirs=ignored_dirs)
+            if not policy.is_ignored_path(
+                current_path / dirname, ignored_dirs=ignored_dirs
+            )
         ]
         for filename in filenames:
             path = current_path / filename

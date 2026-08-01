@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from app.errors import ToolInputError
 from app.tools.base import ITool
@@ -9,6 +9,15 @@ from app.tools.path_safety import is_probably_binary_file, resolve_workspace_pat
 class ReadFileTool(ITool):
     name = "read_file"
     description = "Read a UTF-8 text file"
+    read_only = True
+    input_schema: ClassVar[dict[str, Any]] = {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "Workspace-relative file path"}
+        },
+        "required": ["path"],
+        "additionalProperties": False,
+    }
 
     def __init__(self, root_dir: str | Path, max_bytes: int = 200_000) -> None:
         self.root_dir = Path(root_dir).resolve()

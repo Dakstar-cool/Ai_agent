@@ -11,9 +11,11 @@ from pathlib import Path
 
 from app.providers.memory.base import IMemoryService
 from app.providers.memory.models import (
+    MemoryExportItem,
     MemoryRecallItem,
     MemoryRecallQuery,
     MemoryRecord,
+    MemoryScopeQuery,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,6 +40,12 @@ class JsonFileMemoryService(IMemoryService):
     async def save(self, item: MemoryRecord) -> None:
         await asyncio.to_thread(self._save_sync, item)
 
+    async def export(self, query: MemoryScopeQuery) -> list[MemoryExportItem]:
+        return await asyncio.to_thread(self._export_sync, query)
+
+    async def delete(self, query: MemoryScopeQuery) -> int:
+        return await asyncio.to_thread(self._delete_sync, query)
+
     def _save_sync(self, item: MemoryRecord) -> None:
         record = item.model_copy(
             update={
@@ -45,9 +53,8 @@ class JsonFileMemoryService(IMemoryService):
                 "project_path": self._normalize_path(item.project_path),
             }
         )
-        with self._lock:
-            with self.storage_path.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps(record.model_dump(), ensure_ascii=False) + "\n")
+        with self._lock, self.storage_path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record.model_dump(), ensure_ascii=False) + "\n")
         logger.info(
             "memory_record_saved path=%s session_id=%s route=%s project_path=%s",
             self.storage_path,
@@ -102,10 +109,8 @@ class JsonFileMemoryService(IMemoryService):
             if not line:
                 continue
 
-            try:
-                raw_record = json.loads(line)
-                record = MemoryRecord.model_validate(raw_record)
-            except Exception:
+            record = self._parse_record(line)
+            if record is None:
                 continue
 
             score = self._calculate_score(
@@ -124,12 +129,18 @@ class JsonFileMemoryService(IMemoryService):
                 record.created_at or "",
                 counter,
                 MemoryRecallItem(
+                    id=record.id,
                     summary=self._build_summary(record),
                     score=score,
+                    kind=record.kind,
                     route=record.route,
                     session_id=record.session_id,
+                    user_id=record.user_id,
+                    project_id=record.project_id,
                     project_path=record.project_path,
+                    provenance=record.provenance,
                     created_at=record.created_at or datetime.now(UTC).isoformat(),
+                    expires_at=record.expires_at,
                 ),
             )
             if len(ranked) < limit:
@@ -175,6 +186,8 @@ class JsonFileMemoryService(IMemoryService):
         return score
 
     def _build_summary(self, record: MemoryRecord) -> str:
+        if record.summary.strip():
+            return record.summary.strip()
         user_message = record.user_message.strip()
         assistant_reply = record.assistant_reply.strip()
         route = record.route.strip()
@@ -196,3 +209,65 @@ class JsonFileMemoryService(IMemoryService):
         if not value:
             return None
         return str(Path(value).expanduser()).replace("\\", "/").rstrip("/").lower()
+
+    def _export_sync(self, query: MemoryScopeQuery) -> list[MemoryExportItem]:
+        exported: list[MemoryExportItem] = []
+        with self._lock, self.storage_path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                record = self._parse_record(line)
+                if record is None:
+                    continue
+                if not self._matches_scope(record, query):
+                    continue
+                exported.append(
+                    MemoryExportItem(
+                        id=record.id,
+                        kind=record.kind,
+                        summary=self._build_summary(record),
+                        route=record.route,
+                        session_id=record.session_id,
+                        user_id=record.user_id,
+                        project_id=record.project_id,
+                        provenance=record.provenance,
+                        created_at=record.created_at or datetime.now(UTC).isoformat(),
+                        expires_at=record.expires_at,
+                    )
+                )
+        return exported
+
+    def _delete_sync(self, query: MemoryScopeQuery) -> int:
+        retained: list[str] = []
+        deleted = 0
+        with self._lock:
+            with self.storage_path.open("r", encoding="utf-8") as fh:
+                for line in fh:
+                    record = self._parse_record(line)
+                    if record is None:
+                        retained.append(line)
+                        continue
+                    if self._matches_scope(record, query):
+                        deleted += 1
+                    else:
+                        retained.append(line)
+            temporary_path = self.storage_path.with_suffix(
+                self.storage_path.suffix + ".tmp"
+            )
+            temporary_path.write_text("".join(retained), encoding="utf-8")
+            temporary_path.replace(self.storage_path)
+        return deleted
+
+    @staticmethod
+    def _matches_scope(record: MemoryRecord, query: MemoryScopeQuery) -> bool:
+        if query.user_id and record.user_id != query.user_id:
+            return False
+        if query.project_id and record.project_id != query.project_id:
+            return False
+        return not (query.session_id and record.session_id != query.session_id)
+
+    @staticmethod
+    def _parse_record(line: str) -> MemoryRecord | None:
+        try:
+            return MemoryRecord.model_validate_json(line)
+        except (TypeError, ValueError) as exc:
+            logger.debug("memory_record_skipped error_type=%s", exc.__class__.__name__)
+            return None

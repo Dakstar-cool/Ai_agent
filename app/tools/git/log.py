@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from app.errors import ToolInputError
 from app.tools.base import ITool
@@ -11,6 +11,19 @@ from app.tools.git._runner import GitReadOnlyRunner
 class GitLogTool(ITool):
     name = "git_log"
     description = "Run read-only git log"
+    read_only = True
+    input_schema: ClassVar[dict[str, Any]] = {
+        "type": "object",
+        "properties": {
+            "max_count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 20,
+            }
+        },
+        "additionalProperties": False,
+    }
 
     def __init__(
         self,

@@ -1,0 +1,8 @@
+{
+  "plan_version": "0.1.0",
+  "protocol_version": "0.3.0",
+  "compatible_range": ">=0.3.0,<1.0.0",
+  "source_repository": "ai-agent-contracts",
+  "schema_path": "schemas/protocol.schema.json",
+  "schema_sha256": "9fdf093f0005b9459e3c7ae6e30c02238555f3a6406f4eacd08a62f15c00afc2"
+}

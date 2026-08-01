@@ -5,6 +5,7 @@ from pathlib import Path
 from app.config.settings import Settings
 from app.providers.memory.factory import build_memory_service
 from app.providers.memory.json_file import JsonFileMemoryService
+from app.providers.memory.sqlite_fts import SQLiteFTSMemoryService
 
 
 def test_settings_resolve_project_path_returns_absolute() -> None:
@@ -13,6 +14,16 @@ def test_settings_resolve_project_path_returns_absolute() -> None:
 
     assert resolved.is_absolute()
     assert str(resolved).endswith(str(Path("data") / "memory" / "test.jsonl"))
+
+
+def test_default_state_database_is_outside_tool_workspace(monkeypatch) -> None:
+    monkeypatch.delenv("STATE_DB_PATH", raising=False)
+    settings = Settings(_env_file=None, state_db_path=None)
+
+    resolved = settings.resolve_state_db_path()
+
+    assert resolved.is_absolute()
+    assert resolved != settings.resolve_project_path("data/state/worker.sqlite3")
 
 
 def test_memory_factory_uses_resolved_absolute_path() -> None:
@@ -28,6 +39,19 @@ def test_memory_factory_uses_resolved_absolute_path() -> None:
     assert str(service.storage_path).endswith(
         str(Path("data") / "memory" / "test.jsonl")
     )
+
+
+def test_sqlite_memory_factory_uses_app_state_by_default(tmp_path) -> None:
+    settings = Settings(
+        enable_memory=True,
+        memory_backend="sqlite",
+        state_db_path=str(tmp_path / "worker.sqlite3"),
+    )
+
+    service = build_memory_service(settings)
+
+    assert isinstance(service, SQLiteFTSMemoryService)
+    assert service.storage_path == (tmp_path / "knowledge.sqlite3").resolve()
 
 
 def test_env_example_contains_public_settings() -> None:

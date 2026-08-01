@@ -26,10 +26,6 @@ async def test_code_verifier_returns_structured_checks(
         }
 
     monkeypatch.setattr(verifier, "_run_check", fake_run_check)
-    monkeypatch.setattr(
-        "app.orchestrator.verification.code_verifier.shutil.which", lambda name: None
-    )
-
     result = await verifier.verify()
 
     assert result["ok"] is True
@@ -38,4 +34,4 @@ async def test_code_verifier_returns_structured_checks(
         "pytest",
         "ruff",
     ]
-    assert result["checks"][2]["skipped"] is True
+    assert result["checks"][2]["command"] == ["uv", "run", "ruff", "check", "."]

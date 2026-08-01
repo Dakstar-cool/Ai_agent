@@ -1,20 +1,45 @@
-# Ai_agentV1
+# AI Agent Worker
 
 Локальный каркас AI-агента на FastAPI с отдельным orchestration layer, LM Studio как текущим LLM backend, опциональной локальной памятью и безопасным набором инструментов для работы с проектом.
 
-Проект сейчас находится на стадии foundation: основной request pipeline уже собран, интерфейсы отделены от реализаций, а инструменты зарегистрированы через общий registry. Planner пока делает один LLM-шаг и еще не строит полноценный многошаговый tool-calling loop.
+Worker `0.8.7` содержит безопасный tool-calling foundation, persistent Run API,
+изолированный coding workflow и policy-controlled autonomy modes.
+Один LLM-шаг Planner выполняется через ограниченный loop, автоматически запускающий
+только read-only tools. Runs, events, sessions и approvals сохраняются в SQLite/WAL.
 
 ## Что уже есть
 
-- FastAPI gateway с `/health` и `POST /api/v1/chat`.
+- FastAPI gateway с `/health`, compatibility `/api/v1/chat`, Run API, SSE и cancel.
 - Опциональная авторизация через `X-API-Key` или `Authorization: Bearer ...`.
 - Request ID, базовый rate limit, структурированные ошибки и логирование в консоль/файл.
-- Orchestrator Core с router, context builder, planner, dispatcher, verifier, result synthesizer и session manager.
-- LM Studio provider через OpenAI-compatible endpoint `/chat/completions`.
-- Абстракция памяти `IMemoryService`, `NoOpMemoryService` по умолчанию и JSONL backend при включении.
+- Orchestrator Core с router, context builder, planner, dispatcher, verifier, result synthesizer и persistent session manager.
+- Общий OpenAI-compatible provider, локальные пресеты LM Studio/Ollama и capability discovery.
+- Абстракция памяти `IMemoryService`, `NoOpMemoryService` по умолчанию и scoped SQLite/FTS5 backend с TTL, provenance, export/delete.
 - Фильтр чувствительных данных перед сохранением памяти.
 - Tool registry и безопасные tools для файлов, поиска по проекту, read-only git и ограниченного запуска команд.
+- Типизированные `LLMResponse`, `ToolCall`, `ToolResult`, JSON Schema tools и ограниченный LLM-driven execution loop.
 - Code verifier для coding-route при `metadata.verify_code=true`.
+- Явный pin на `ai-agent-contracts` protocol `0.3.0` с checksum schema.
+- Workspace registry: новый Run принимает `workspace_id`, а не клиентский raw path.
+- State machine `queued/running/waiting_approval/verifying/completed/failed/cancelled`.
+- Append-only `RunEvent`, восстановление timeline после restart и один execution lock
+  на workspace.
+- LLM/tool/verification steps записываются в RunEvent сразу во время
+  execution, поэтому SSE timeline не ждёт финального ответа orchestrator.
+- Task branch/worktree от committed SHA без stash/reset исходного workspace.
+- Детерминированный `MutationPreview`, approval по `preview_hash` и stale-state check
+  перед атомарной записью.
+- Verification/diff report и опциональный локальный commit; push, clean, reset и
+  удаление worktree не поддерживаются.
+- Типизированный `RunPolicy`: safe, supervised и autonomous с TTL, tool/path scope,
+  лимитами writes/commands и явным network permission.
+- Порядок policy: hard deny → organization/project boundary → task grant → requested
+  mode; protected paths и destructive git нельзя разрешить повышением автономности.
+- Каждая выполненная мутация оставляет append-only `policy_audit` с решением policy и
+  post-action SHA-256.
+- LLM tool calls сохраняются отдельными `RunEvent`; task worktree report содержит
+  безопасно ограниченный unified diff, а импорт handoff блокируется до создания
+  worktree, если указанный base SHA отсутствует или уже связан с другой базой.
 - Тесты для API, роутинга, инструментов, памяти, ошибок, настроек и верификации.
 
 ## Структура проекта
@@ -29,21 +54,28 @@ app/
   errors.py                       # AppError и доменные ошибки
   orchestrator/
     core.py                       # основной pipeline обработки запроса
+    approval/store.py             # одноразовые pending approvals с TTL
     context/builder.py            # история сессии + recalled memory + system prompt
     execution/tool_dispatcher.py  # выполнение tool steps через registry
-    planning/planner.py           # активный planner, пока один LLM-шаг
-    planning/simple.py            # экспериментальный scaffold, не активный runtime
+    planning/planner.py           # активный planner, формирует LLM-шаг
     routing/router.py             # simple route: general/architecture/coding/research
     session/manager.py            # in-memory session state
     synthesis/result_synthesizer.py
     verification/
       verifier.py                 # проверка ответа модели на пустой результат
       code_verifier.py            # compileall, pytest, ruff при coding verification
+  runs/
+    models.py                     # Run state machine и persistent records
+    service.py                    # background execution, recovery, cancel, approvals
+  state/
+    store.py                      # SQLite/WAL repositories и append-only events
+    runtime.py                    # default workspace и lifecycle state store
   providers/
     llm/                          # ILLMProvider + LMStudioProvider
     memory/                       # IMemoryService, noop, json_file, policy, factory
   schemas/
     chat.py                       # ChatRequest, ChatResponse, ExecutionStep
+    runs.py                       # Run/RunEvent/Workspace/Approval API contracts
   tools/
     base.py                       # ITool
     registry.py                   # ToolRegistry
@@ -54,11 +86,15 @@ app/
     terminal/                     # run_command без shell и с allow-list
   utils/
     logging.py
+    observability.py                # opt-in bounded OTLP/HTTP traces и metrics
     request_context.py
 
 docs/
   FOUNDATION_DECISIONS.md         # исторические архитектурные решения v0
+  PROJECT_PLAN.md                 # генеральная дорожная карта до создания contracts repo
+  PROJECT_STATE.md                # текущее состояние, следующий шаг и известные gaps
 tests/                            # pytest-набор по текущим модулям
+contracts.lock                    # protocol version/range и checksum source schema
 ```
 
 `data/`, `logs/`, `.pytest_cache/`, `.ruff_cache/`, `.venv/`, `venv/` и `ai_agentv1.egg-info/` не являются основной архитектурой приложения. Это runtime/build/test артефакты или локальная среда.
@@ -66,9 +102,10 @@ tests/                            # pytest-набор по текущим мод
 ## Базовый поток
 
 ```text
-POST /api/v1/chat
+POST /api/v1/chat (compatibility adapter)
   -> require_api_key()
   -> request middleware: request_id, rate limit, logging
+  -> persistent RunService.create_run()
   -> Orchestrator.handle()
   -> SessionManager.get_or_create()
   -> TaskRouter.route()
@@ -77,14 +114,78 @@ POST /api/v1/chat
        - последние сообщения сессии
        - recalled memory, если backend включен
   -> Planner.make_plan()
-  -> LLMProvider.chat()
+  -> bounded agent loop
+       - LLMProvider.chat(tools=..., tool_choice="auto")
+       - read-only tool calls через ToolDispatcher
+       - tool results обратно в LLM по tool_call_id
+       - stop/max_steps/max_tool_calls/deadline/duplicate protection
   -> Verifier.verify()
   -> optional CodeVerifier.verify(), если route=coding и metadata.verify_code=true
   -> memory save, если включена память и данные не чувствительные
   -> ResultSynthesizer.synthesize()
+  -> RunEvent timeline + terminal Run state
+  -> synchronous ChatResponse adapter
 ```
 
-Важно: `ToolDispatcher` и tools уже подключены, но активный `Planner` пока не выбирает инструменты автоматически. Это следующий крупный шаг.
+Автоматически выполняются только tools с `read_only=true`. `write_file`, `run_command` и любые новые mutating tools по безопасному умолчанию сначала возвращают `approval_required` и выполняются только после отдельного подтверждённого запроса той же сессии.
+
+## Run API
+
+Новый клиент сначала регистрирует доверенный локальный workspace, после чего
+использует только его server-generated `workspace_id`:
+
+```text
+POST /api/v1/workspaces
+GET  /api/v1/workspaces
+POST /api/v1/runs
+GET  /api/v1/runs?workspace_id=<uuid>&limit=50
+GET  /api/v1/runs/{run_id}
+GET  /api/v1/runs/{run_id}/events?after=0
+POST /api/v1/runs/{run_id}/cancel
+POST /api/v1/approvals/{approval_id}/decision
+POST /api/v1/task-worktrees
+GET  /api/v1/task-worktrees/{task_id}/report
+POST /api/v1/task-worktrees/{task_id}/verify
+POST /api/v1/task-worktrees/{task_id}/finalize
+```
+
+SSE events имеют монотонный `sequence` и публикуются по мере execution,
+поэтому timeline можно показывать до terminal response и восстанавливать после
+restart/reconnect. Interrupted `running/verifying` run после restart
+становится `failed` с безопасным `worker_restarted`; queued run возобновляется,
+waiting approval сохраняется.
+
+`POST /api/v1/chat` сохранён без изменения request shape. Он создаёт Run в default
+workspace и ждёт terminal/waiting-approval state. Переданный `project_path` больше
+не определяет область tools.
+
+### Run policy
+
+Без поля `policy` каждый Run использует `safe`: read-only tools выполняются сразу,
+любая мутация возвращает preview и требует approval. Ограниченный grant задаётся
+только для Run API, а его время начала фиксирует worker:
+
+```json
+{
+  "schema_version": "0.3.0",
+  "workspace_id": "00000000-0000-0000-0000-000000000000",
+  "message": "Исправь src/app.py и запусти тесты",
+  "policy": {
+    "schema_version": "0.3.0",
+    "mode": "supervised",
+    "ttl_seconds": 300,
+    "allowed_tools": ["write_file", "run_command"],
+    "path_globs": ["src/**", "tests/**"],
+    "max_writes": 3,
+    "max_commands": 3,
+    "network_allowed": false
+  }
+}
+```
+
+Выход за grant возвращает approval или policy denial. Protected paths, workspace
+escape, destructive git и network без явного разрешения не обходятся режимом
+`autonomous`.
 
 ## Инструменты
 
@@ -105,7 +206,8 @@ POST /api/v1/chat
 - закрыт доступ к `.env`, `.git`, `.venv`, `venv`, cache/build директориям и `node_modules`;
 - `run_command` не использует shell и блокирует shell operators;
 - git-инструменты read-only;
-- фактически разрешенные command patterns сейчас ограничены `git status/diff/log`, `uv run pytest -q`, `uv run python -m compileall app tests` и `ruff check .`.
+- mutating tools не выполняются автоматически и возвращают `approval_required`;
+- фактически разрешенные command patterns сейчас ограничены `git status/diff/log`, `uv run pytest -q`, `uv run python -m compileall app tests` и `uv run ruff check .`.
 
 ## Запуск
 
@@ -121,6 +223,7 @@ Copy-Item .env.example .env
 ```env
 LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1
 LMSTUDIO_MODEL=google/gemma-4-e4b
+LLM_MAX_OUTPUT_TOKENS=1024
 ```
 
 Старт API:
@@ -134,6 +237,21 @@ uv run python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/health
 ```
+
+Проверка real-provider tool loop с уже загруженной tool-capable моделью:
+
+```powershell
+uv run python scripts/smoke_lmstudio.py --model <loaded-model-id>
+uv run python scripts/smoke_ollama.py --model <loaded-model-name>
+```
+
+Обе команды проверяют capability discovery, обычный ответ, `read_file`,
+`search_project`, malformed tool call и привязку `tool_call_id`. Ошибка выводится
+только как безопасный JSON с типом исключения, без traceback и provider details.
+Для Ollama endpoint можно задать через `OLLAMA_BASE_URL`, а модель — через
+`OLLAMA_MODEL` вместо CLI-параметров. Ollama preset по умолчанию передаёт
+`reasoning_effort=none` для надёжного tool calling, а smoke выделяет 512
+output-токенов для полного round-trip на компактных локальных моделях.
 
 Пример chat-запроса:
 
@@ -160,17 +278,49 @@ Invoke-RestMethod `
 | `RATE_LIMIT_REQUESTS_PER_MINUTE` | `120` | Лимит запросов в минуту на client host. |
 | `LOG_LEVEL` | `INFO` | Уровень логирования. |
 | `LOG_TO_FILE` | `true` | Писать логи в файл. |
+| `TELEMETRY_ENABLED` | `false` | Явно включает bounded OTLP/HTTP traces и metrics; по умолчанию network export отсутствует. |
+| `TELEMETRY_EXPORTER_OTLP_ENDPOINT` | empty | Collector origin; production требует HTTPS. |
+| `TELEMETRY_SERVICE_NAME` | `ai-agent-worker` | Безопасное service name в telemetry resource. |
 | `LMSTUDIO_BASE_URL` | `http://127.0.0.1:1234/v1` | OpenAI-compatible endpoint LM Studio. |
 | `LMSTUDIO_MODEL` | `google/gemma-4-e4b` | Модель для запросов к LM Studio. |
+| `LLM_MAX_OUTPUT_TOKENS` | `1024` | Жёсткий предел output tokens одного LLM-запроса. |
 | `ENABLE_MEMORY` | `false` | Включает сохранение и recall памяти. |
-| `MEMORY_BACKEND` | `noop` | Сейчас поддерживаются `noop` и `json`. |
+| `MEMORY_BACKEND` | `noop` | Поддерживаются `noop`, legacy `json` и `sqlite`/FTS5. |
 | `MEMORY_FILE_PATH` | `data/memory/interactions.jsonl` | JSONL-файл памяти. |
+| `MEMORY_SQLITE_PATH` | OS app-data/state | SQLite/FTS5 summaries/decisions без raw tool outputs. |
+| `MEMORY_TTL_DAYS` | `90` | Срок хранения persistent knowledge. |
 | `SESSION_MAX_SESSIONS` | `200` | Максимум in-memory сессий. |
 | `SESSION_MAX_MESSAGES` | `50` | Максимум сообщений в истории сессии. |
+| `STATE_DB_PATH` | OS app-data/state | SQLite/WAL с runs, events, sessions и approvals. |
+| `TASK_WORKTREE_ROOT` | OS app-data/worktrees | Изолированные worktrees coding-задач. |
+| `RUN_EVENT_POLL_INTERVAL_SECONDS` | `0.1` | Интервал polling для SSE и sync adapter. |
+| `AGENT_MAX_STEPS` | `6` | Максимум LLM-turns в одном execution loop. |
+| `AGENT_MAX_TOOL_CALLS` | `10` | Общий лимит запрошенных tool calls. |
+| `AGENT_TIMEOUT_SECONDS` | `120` | Общий deadline одного execution loop. |
+| `APPROVAL_TTL_SECONDS` | `300` | Срок действия ожидающего подтверждения mutating tool. |
+| `APPROVAL_MAX_PENDING` | `200` | Максимум ожидающих подтверждений в памяти процесса. |
 | `TOOL_WORKSPACE_ROOT` | `.` | Корень, внутри которого работают tools. |
 | `TOOL_MAX_FILE_BYTES` | `200000` | Лимит чтения/записи файлов и поиска. |
 | `TOOL_COMMAND_TIMEOUT_SECONDS` | `30` | Таймаут команд tools и code verifier. |
 | `TOOL_MAX_OUTPUT_CHARS` | `20000` | Лимит stdout/stderr в tool result. |
+
+## Подтверждение mutating tools
+
+Когда модель запрашивает `write_file`, `run_command` или другой tool без `read_only=true`, соответствующий `ExecutionStep` получает статус `approval_required` и серверный `payload.approval_id`. Сам tool на этом этапе не выполняется.
+
+Для подтверждения отправьте новый запрос в ту же сессию:
+
+```json
+{
+  "message": "Подтверждаю ожидающее изменение",
+  "session_id": "тот-же-session-id",
+  "metadata": {
+    "approve_tool_call_id": "approval-id-из-предыдущего-ответа"
+  }
+}
+```
+
+Сервер выполняет сохраненную копию исходного `ToolCall`: передать новые аргументы через metadata нельзя. Подтверждение одноразовое, привязано к сессии и ограничено по TTL. Чужой `session_id`, повторное или просроченное подтверждение отклоняются до выполнения tool.
 
 ## Память
 
@@ -181,12 +331,12 @@ ENABLE_MEMORY=false
 MEMORY_BACKEND=noop
 ```
 
-Чтобы включить локальную JSONL-память:
+Чтобы включить scoped SQLite/FTS5-память:
 
 ```env
 ENABLE_MEMORY=true
-MEMORY_BACKEND=json
-MEMORY_FILE_PATH=data/memory/interactions.jsonl
+MEMORY_BACKEND=sqlite
+MEMORY_TTL_DAYS=90
 ```
 
 Перед сохранением проверяются сообщение пользователя, metadata и ответ модели. Если найдено что-то похожее на API keys, passwords, tokens, authorization headers или private keys, запись в память пропускается.
@@ -213,10 +363,18 @@ Recalled memory передается модели как недоверенны�
 ```text
 uv run python -m compileall app tests
 uv run pytest -q
-ruff check .
+uv run ruff check .
 ```
 
-`ruff check .` пропускается, если executable `ruff` не найден.
+## Sidecar artifacts
+
+`scripts/build_sidecar.py` создаёт PyInstaller executable с Tauri target triple в имени
+и отдельный SHA-256 checksum. `scripts/smoke_sidecar.py` запускает готовый бинарник и
+проверяет random loopback port, обязательный bearer token и protocol version.
+
+GitHub Actions собирает и smoke-проверяет sidecar отдельно на Windows x64, Linux x64 и
+macOS arm64. Артефакты workflow имеют срок хранения 14 дней и не считаются подписанным
+релизом.
 
 ## Тесты
 
@@ -228,21 +386,13 @@ uv run pytest -q
 
 ```powershell
 uv run python -m compileall app tests
-ruff check .
+uv run ruff check .
 ```
 
 ## Что планируется дальше
 
-Ближайший порядок работ:
-
-1. Расширить `Planner` до tool-calling loop: выбор tools, выполнение, передача результатов обратно в модель, stop conditions и защита от бесконечных циклов.
-2. Описать tool schemas для модели и сделать единый формат tool step, чтобы LLM могла запрашивать `read_file`, `search_project`, `git_diff` и другие инструменты предсказуемо.
-3. Собрать coding workflow: анализ запроса, чтение файлов, подготовка patch, запуск verifier, итоговый diff summary.
-4. Сделать persistent session store вместо только in-memory history.
-5. Улучшить memory backend: нормальный project/user scope, более точный retrieval, подготовка к embeddings/vector store или mem0 за тем же `IMemoryService`.
-6. Добавить дополнительные LLM providers: Ollama, vLLM или общий OpenAI-compatible provider вместо жесткой привязки к LM Studio.
-7. Добавить CLI-клиент рядом с API для локального использования без ручных HTTP-запросов.
-8. Вынести GUI/desktop worker в отдельный adapter, не смешивая его с ядром orchestrator.
-9. Усилить observability: метрики, structured tracing по шагам planner/tools/LLM и e2e-тесты на полный сценарий.
-
-Текущий главный фокус - не добавлять новые возможности прямо в core, а нарастить их через интерфейсы: `ILLMProvider`, `IMemoryService`, `ITool` и orchestration pipeline.
+Актуальный порядок работ и критерии готовности хранятся в
+[`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md). Полная дорожная карта находится в
+[`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md). После появления отдельного
+`ai-agent-contracts` эти документы становятся каноническими в нём, а worker
+закрепляет совместимую версию contracts.
