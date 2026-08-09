@@ -48,7 +48,9 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             binary: ai-agent-worker-x86_64-pc-windows-msvc.exe
-          - os: ubuntu-latest
+          # PyInstaller Linux artifacts are only forward-compatible with newer glibc.
+          # Build on the oldest Linux release supported by the desktop package.
+          - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             binary: ai-agent-worker-x86_64-unknown-linux-gnu
           - os: macos-15
